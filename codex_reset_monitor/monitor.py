@@ -44,17 +44,19 @@ def process_status(
     """Send required notifications and durably record each successful outcome."""
     checked_at_utc = checked_at.astimezone(timezone.utc)
     updated_at = _updated_at(checked_at_utc)
+    effective_watch = status.active_watch
+    if effective_watch is not None and effective_watch.expires_at <= checked_at_utc:
+        effective_watch = None
 
     if not state.initialized:
-        if not _deliver(lambda: render_activation(status, checked_at), send):
+        activation_status = replace(status, active_watch=effective_watch)
+        if not _deliver(lambda: render_activation(activation_status, checked_at), send):
             raise MonitorRunError("one or more notifications failed") from None
         initialized = replace(
             state,
             initialized=True,
             notified_reset_id=status.latest_reset.id if status.latest_reset else None,
-            active_watch_fingerprint=(
-                watch_fingerprint(status.active_watch) if status.active_watch else None
-            ),
+            active_watch_fingerprint=watch_fingerprint(effective_watch) if effective_watch else None,
             state_updated_at=updated_at,
         )
         _persist(initialized, persist)
@@ -63,10 +65,7 @@ def process_status(
     current = state
     failed_notifications: list[str] = []
 
-    if (
-        status.active_watch is None
-        or status.active_watch.expires_at <= checked_at_utc
-    ):
+    if effective_watch is None:
         if current.active_watch_fingerprint is not None:
             current = replace(
                 current,
@@ -75,11 +74,11 @@ def process_status(
             )
             _persist(current, persist)
     else:
-        fingerprint = watch_fingerprint(status.active_watch)
+        fingerprint = watch_fingerprint(effective_watch)
         if fingerprint != current.active_watch_fingerprint:
             if _deliver(
                 lambda: render_watch(
-                    status.active_watch,
+                    effective_watch,
                     checked_at,
                     is_update=current.active_watch_fingerprint is not None,
                 ),

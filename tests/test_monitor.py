@@ -47,6 +47,27 @@ class ProcessStatusTests(unittest.TestCase):
         self.assertEqual(result.state_updated_at, "2026-08-28T14:00:00Z")
         self.assertEqual(persisted, [result])
 
+    def test_first_run_with_expired_watch_omits_forecast_and_initializes_empty_marker(self):
+        status = parse_status(valid_status_payload())
+        sent = []
+        persisted = []
+
+        result = process_status(
+            status,
+            MonitorState.initial(),
+            EXPIRED_CHECKED_AT,
+            sent.append,
+            persisted.append,
+        )
+
+        self.assertEqual([mail.subject for mail in sent], ["[Codex Resets] 监控已启用"])
+        self.assertNotIn("当前预测概率", sent[0].body)
+        self.assertNotIn("当前预测窗口", sent[0].body)
+        self.assertTrue(result.initialized)
+        self.assertIsNone(result.active_watch_fingerprint)
+        self.assertEqual(result.notified_reset_id, "reset-1")
+        self.assertEqual(persisted, [result])
+
     def test_identical_initialized_snapshot_sends_and_persists_nothing(self):
         status = parse_status(valid_status_payload())
         sent = []
