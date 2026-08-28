@@ -1,2 +1,9 @@
 .worktrees/
+.venv/
 __pycache__/
+*.py[cod]
+.coverage
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
