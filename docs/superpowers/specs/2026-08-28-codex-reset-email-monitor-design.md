@@ -163,11 +163,11 @@ Messages use UTF-8 and provide a plain-text body. They must not contain the QQ S
   "initialized": true,
   "notified_reset_id": "public-reset-id",
   "active_watch_fingerprint": null,
-  "last_successful_check_at": "2026-08-28T14:00:00Z"
+  "state_updated_at": "2026-08-28T14:00:00Z"
 }
 ```
 
-This is the complete version-1 state shape. `notified_reset_id` records successful reset mail, while `active_watch_fingerprint` records successful forecast mail or `null` after a forecast disappears. These independent markers support partial retry without adding another delivery ledger. The file never contains email addresses, authorization codes, environment variables, SMTP responses, or other private data.
+This is the complete version-1 state shape. `notified_reset_id` records successful reset mail, while `active_watch_fingerprint` records successful forecast mail or `null` after a forecast disappears. `state_updated_at` changes only when one of these durable state fields changes, so an unchanged hourly check does not create a commit. These independent markers support partial retry without adding another delivery ledger. The file never contains email addresses, authorization codes, environment variables, SMTP responses, or other private data.
 
 The process atomically rewrites the local state file immediately after each successful message. If another message in the same run fails, its marker remains unchanged. The workflow's state-persistence step runs even after a notification-step failure and commits any successfully advanced markers before the run finishes as failed. Automated commits use the GitHub-provided token and a bot identity. No commit is made for an unchanged status.
 
