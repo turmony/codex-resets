@@ -42,7 +42,8 @@ def process_status(
     persist: Callable[[MonitorState], None],
 ) -> MonitorState:
     """Send required notifications and durably record each successful outcome."""
-    updated_at = _updated_at(checked_at)
+    checked_at_utc = checked_at.astimezone(timezone.utc)
+    updated_at = _updated_at(checked_at_utc)
 
     if not state.initialized:
         if not _deliver(lambda: render_activation(status, checked_at), send):
@@ -62,7 +63,10 @@ def process_status(
     current = state
     failed_notifications: list[str] = []
 
-    if status.active_watch is None:
+    if (
+        status.active_watch is None
+        or status.active_watch.expires_at <= checked_at_utc
+    ):
         if current.active_watch_fingerprint is not None:
             current = replace(
                 current,

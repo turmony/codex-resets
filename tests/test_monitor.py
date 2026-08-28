@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +11,7 @@ from tests.fixtures import valid_status_payload
 
 
 CHECKED_AT = datetime(2026, 8, 28, 14, 0, tzinfo=timezone.utc)
+EXPIRED_CHECKED_AT = datetime(2026, 8, 29, 18, 0, tzinfo=timezone(timedelta(hours=8)))
 
 
 def initialized_state(status):
@@ -105,6 +106,58 @@ class ProcessStatusTests(unittest.TestCase):
         self.assertEqual(result.notified_reset_id, "reset-1")
         self.assertEqual(result.state_updated_at, "2026-08-28T14:00:00Z")
         self.assertEqual(persisted, [result])
+
+    def test_expired_watch_clears_existing_fingerprint_without_sending_mail(self):
+        status = parse_status(valid_status_payload())
+        sent = []
+        persisted = []
+
+        result = process_status(
+            status,
+            initialized_state(status),
+            EXPIRED_CHECKED_AT,
+            sent.append,
+            persisted.append,
+        )
+
+        self.assertEqual(sent, [])
+        self.assertIsNone(result.active_watch_fingerprint)
+        self.assertEqual(result.notified_reset_id, "reset-1")
+        self.assertEqual(result.state_updated_at, "2026-08-29T10:00:00Z")
+        self.assertEqual(persisted, [result])
+
+    def test_changed_expired_watch_clears_marker_without_sending_update(self):
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["reset_chance_percent"] = 85
+        status = parse_status(payload)
+        original_status = parse_status(valid_status_payload())
+        sent = []
+        persisted = []
+
+        result = process_status(
+            status,
+            initialized_state(original_status),
+            EXPIRED_CHECKED_AT,
+            sent.append,
+            persisted.append,
+        )
+
+        self.assertEqual(sent, [])
+        self.assertIsNone(result.active_watch_fingerprint)
+        self.assertEqual(result.notified_reset_id, "reset-1")
+        self.assertEqual(persisted, [result])
+
+    def test_expired_watch_without_marker_leaves_state_unchanged(self):
+        status = parse_status(valid_status_payload())
+        state = replace(initialized_state(status), active_watch_fingerprint=None)
+        sent = []
+        persisted = []
+
+        result = process_status(status, state, EXPIRED_CHECKED_AT, sent.append, persisted.append)
+
+        self.assertEqual(result, state)
+        self.assertEqual(sent, [])
+        self.assertEqual(persisted, [])
 
     def test_new_reset_sends_confirmation_and_persists_only_new_reset_id(self):
         payload = valid_status_payload()
