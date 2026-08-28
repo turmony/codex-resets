@@ -18,6 +18,10 @@ class MailDeliveryError(Exception):
     """Raised when a QQ SMTP delivery cannot be completed."""
 
 
+class MailRenderingError(Exception):
+    """Raised when a notification time cannot be rendered accurately."""
+
+
 @dataclass(frozen=True)
 class MailContent:
     subject: str
@@ -29,6 +33,8 @@ def _format_times(value: datetime) -> tuple[str, str]:
     try:
         beijing_zone = ZoneInfo("Asia/Shanghai")
     except ZoneInfoNotFoundError:
+        if utc_value < datetime(1992, 1, 1, tzinfo=timezone.utc):
+            raise MailRenderingError("Beijing time conversion unavailable") from None
         beijing_zone = timezone(timedelta(hours=8), "Asia/Shanghai")
     beijing_value = value.astimezone(beijing_zone)
     return (

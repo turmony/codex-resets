@@ -1,6 +1,8 @@
 import smtplib
 import unittest
 from datetime import datetime, timezone
+from unittest.mock import patch
+from zoneinfo import ZoneInfoNotFoundError
 
 from codex_reset_monitor.domain import parse_status
 from tests.fixtures import valid_status_payload
@@ -79,6 +81,31 @@ class RenderMailTests(unittest.TestCase):
         content = render_watch(watch, self.checked_at, is_update=False)
 
         self.assertTrue(content.subject.endswith("概率未知"))
+
+    def test_modern_times_use_utc_plus_eight_when_zoneinfo_is_unavailable(self):
+        from codex_reset_monitor.emailer import render_reset
+
+        with patch(
+            "codex_reset_monitor.emailer.ZoneInfo",
+            side_effect=ZoneInfoNotFoundError("tzdata unavailable"),
+        ):
+            content = render_reset(self.status.latest_reset, self.checked_at)
+
+        self.assertIn("2026-08-28 00:35:05 北京时间", content.body)
+
+    def test_historical_times_fail_safely_when_zoneinfo_is_unavailable(self):
+        from codex_reset_monitor.emailer import render_reset
+
+        self.payload["data"]["latest_reset"]["announced_at"] = "1991-09-15T16:35:05Z"
+        reset = parse_status(self.payload).latest_reset
+        with patch(
+            "codex_reset_monitor.emailer.ZoneInfo",
+            side_effect=ZoneInfoNotFoundError("tzdata unavailable"),
+        ):
+            with self.assertRaisesRegex(Exception, "^Beijing time conversion unavailable$") as raised:
+                render_reset(reset, self.checked_at)
+
+        self.assertEqual(type(raised.exception).__name__, "MailRenderingError")
 
     def test_reset_includes_type_source_and_both_times(self):
         from codex_reset_monitor.emailer import render_reset
