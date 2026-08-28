@@ -21,6 +21,20 @@ class FakeResponse:
         return False
 
 
+class ReadFailureResponse:
+    def __init__(self, error):
+        self.error = error
+
+    def read(self):
+        raise self.error
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
+
 class FetchStatusTests(unittest.TestCase):
     def test_retries_temporary_url_error_then_succeeds(self):
         calls = []
@@ -89,3 +103,37 @@ class FetchStatusTests(unittest.TestCase):
             fetch_status(opener=opener, sleep=sleeps.append)
 
         self.assertEqual(sleeps, [1, 2])
+
+    def test_retries_temporary_http_server_error_then_succeeds(self):
+        calls = []
+        sleeps = []
+
+        def opener(request, timeout):
+            calls.append((request, timeout))
+            if len(calls) == 1:
+                raise HTTPError(request.full_url, 503, "Service Unavailable", {}, io.BytesIO())
+            return FakeResponse(valid_status_payload())
+
+        status = fetch_status(opener=opener, sleep=sleeps.append)
+
+        self.assertEqual(status.latest_reset.id, "reset-1")
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(sleeps, [1])
+
+    def test_sanitizes_json_decoding_failure(self):
+        class InvalidJsonResponse(FakeResponse):
+            def read(self):
+                return b"not json"
+
+        with self.assertRaisesRegex(StatusAPIError, "^Codex Resets API request failed$"):
+            fetch_status(opener=lambda request, timeout: InvalidJsonResponse(None))
+
+    def test_sanitizes_schema_validation_failure(self):
+        with self.assertRaisesRegex(StatusAPIError, "^Codex Resets API request failed$"):
+            fetch_status(opener=lambda request, timeout: FakeResponse({"data": {}}))
+
+    def test_sanitizes_response_read_errors(self):
+        for error in (OSError("private read detail"), TimeoutError("private timeout detail")):
+            with self.subTest(error=type(error).__name__):
+                with self.assertRaisesRegex(StatusAPIError, "^Codex Resets API request failed$"):
+                    fetch_status(opener=lambda request, timeout: ReadFailureResponse(error))

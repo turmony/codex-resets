@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 from typing import Any, Mapping
 
 
@@ -42,9 +43,11 @@ class StatusSnapshot:
 
 
 def _parse_timestamp(value: object) -> datetime:
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})", value
+    ):
         raise ValueError
-    timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    timestamp = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
         raise ValueError
     return timestamp.astimezone(timezone.utc)

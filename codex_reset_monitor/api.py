@@ -49,7 +49,7 @@ def fetch_status(*, opener: Callable = urlopen, sleep: Callable = time.sleep) ->
             if attempt == MAX_ATTEMPTS - 1:
                 raise StatusAPIError("Codex Resets API request failed") from None
             delay = RETRY_DELAYS_SECONDS[attempt]
-        except (UnicodeDecodeError, json.JSONDecodeError, StatusValidationError):
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, StatusValidationError):
             raise StatusAPIError("Codex Resets API request failed") from None
         sleep(delay)
 

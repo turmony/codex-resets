@@ -24,3 +24,59 @@ class ParseStatusTests(unittest.TestCase):
     def test_rejects_missing_required_data(self):
         with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
             parse_status({"data": {}})
+
+    def test_rejects_timestamp_without_timezone(self):
+        payload = valid_status_payload()
+        payload["meta"]["generated_at"] = "2026-08-28T12:00:00"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_non_rfc3339_space_separated_timestamp(self):
+        payload = valid_status_payload()
+        payload["meta"]["generated_at"] = "2026-08-28 12:00:00Z"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_timestamp_with_z_outside_the_timezone_suffix(self):
+        payload = valid_status_payload()
+        payload["meta"]["generated_at"] = "2026-08-28ZT12:00:00+00:00"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_unknown_reset_type(self):
+        payload = valid_status_payload()
+        payload["data"]["latest_reset"]["type"] = "unexpected"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_unknown_watch_level(self):
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["level"] = "low"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_empty_required_string(self):
+        payload = valid_status_payload()
+        payload["data"]["latest_reset"]["source"]["author"] = ""
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_accepts_probability_boundaries(self):
+        for probability in (0, 100):
+            with self.subTest(probability=probability):
+                payload = valid_status_payload()
+                payload["data"]["active_watch"]["reset_chance_percent"] = probability
+                self.assertEqual(parse_status(payload).active_watch.reset_chance_percent, probability)
+
+    def test_rejects_boolean_probability(self):
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["reset_chance_percent"] = True
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
