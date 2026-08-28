@@ -32,6 +32,11 @@ class MonitorStateTests(unittest.TestCase):
         with self.assertRaisesRegex(StateError, "monitor state is invalid"):
             load_state(self.path)
 
+    def test_rejects_non_integer_version_one(self):
+        self.path.write_text('{"version": 1.0, "initialized": false, "notified_reset_id": null, "active_watch_fingerprint": null, "state_updated_at": null}', encoding="utf-8")
+        with self.assertRaisesRegex(StateError, "monitor state is invalid"):
+            load_state(self.path)
+
     def test_rejects_unknown_keys(self):
         self.path.write_text(json.dumps({"version": 1, "initialized": False, "notified_reset_id": None,
                                          "active_watch_fingerprint": None, "state_updated_at": None, "extra": 1}), encoding="utf-8")

@@ -43,7 +43,7 @@ def _parse_state(raw: object) -> MonitorState:
         raise _invalid()
     version = raw["version"]
     initialized = raw["initialized"]
-    if isinstance(version, bool) or version != 1 or not isinstance(initialized, bool):
+    if not isinstance(version, int) or isinstance(version, bool) or version != 1 or not isinstance(initialized, bool):
         raise _invalid()
     for key in ("notified_reset_id", "active_watch_fingerprint", "state_updated_at"):
         value = raw[key]
