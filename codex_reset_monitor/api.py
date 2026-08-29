@@ -40,7 +40,9 @@ def fetch_status(*, opener: Callable = urlopen, sleep: Callable = time.sleep) ->
         except HTTPError as error:
             retryable = error.code == 429 or 500 <= error.code <= 599
             if not retryable or attempt == MAX_ATTEMPTS - 1:
-                raise StatusAPIError("Codex Resets API request failed") from None
+                raise StatusAPIError(
+                    f"Codex Resets API request failed (HTTP {error.code})"
+                ) from None
             delay = (
                 _retry_after_seconds(error, RETRY_DELAYS_SECONDS[attempt])
                 if error.code == 429
@@ -48,10 +50,10 @@ def fetch_status(*, opener: Callable = urlopen, sleep: Callable = time.sleep) ->
             )
         except URLError:
             if attempt == MAX_ATTEMPTS - 1:
-                raise StatusAPIError("Codex Resets API request failed") from None
+                raise StatusAPIError("Codex Resets API request failed (network)") from None
             delay = RETRY_DELAYS_SECONDS[attempt]
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, StatusValidationError):
-            raise StatusAPIError("Codex Resets API request failed") from None
+            raise StatusAPIError("Codex Resets API request failed (invalid response)") from None
         sleep(delay)
 
     raise StatusAPIError("Codex Resets API request failed")
