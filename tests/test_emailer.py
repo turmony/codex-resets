@@ -54,6 +54,26 @@ class RenderMailTests(unittest.TestCase):
         self.assertIn("2026-08-28 00:35:05 北京时间", content.body)
         self.assertIn("reset announcement", content.body)
 
+    def test_activation_contains_complete_active_watch_information(self):
+        from codex_reset_monitor.emailer import render_activation
+
+        content = render_activation(self.status, self.checked_at)
+
+        expected_lines = (
+            "预测概率：70%",
+            "预测级别：elevated",
+            "预测窗口：within 24 hours",
+            "观察时间：2026-08-28 10:00:00 UTC",
+            "观察时间：2026-08-28 18:00:00 北京时间",
+            "失效时间：2026-08-29 10:00:00 UTC",
+            "失效时间：2026-08-29 18:00:00 北京时间",
+            "公告原文：A reset is being watched.",
+            "来源链接：https://codex-resets.com/watches/active",
+        )
+        for expected in expected_lines:
+            with self.subTest(expected=expected):
+                self.assertIn(expected, content.body)
+
     def test_new_watch_uses_probability_subject_and_includes_prediction_fields(self):
         from codex_reset_monitor.emailer import render_watch
 

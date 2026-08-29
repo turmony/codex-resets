@@ -52,6 +52,19 @@ def _source_lines(text: str, url: str) -> list[str]:
     return [f"公告原文：{text}", f"来源链接：{url}"]
 
 
+def _watch_body_lines(watch: WatchInfo) -> list[str]:
+    probability = "未知" if watch.reset_chance_percent is None else f"{watch.reset_chance_percent}%"
+    lines = [
+        f"预测概率：{probability}",
+        f"预测级别：{watch.level}",
+        f"预测窗口：{watch.forecast_window}",
+    ]
+    lines.extend(_time_lines("观察时间", watch.observed_at))
+    lines.extend(_time_lines("失效时间", watch.expires_at))
+    lines.extend(_source_lines(watch.text, watch.source.url))
+    return lines
+
+
 def render_activation(status: StatusSnapshot, checked_at: datetime) -> MailContent:
     lines = ["Codex Resets 监控已启用。"]
     if status.latest_reset is not None:
@@ -59,8 +72,7 @@ def render_activation(status: StatusSnapshot, checked_at: datetime) -> MailConte
         lines.extend(_time_lines("公告时间", status.latest_reset.announced_at))
         lines.extend(_source_lines(status.latest_reset.text, status.latest_reset.source.url))
     if status.active_watch is not None:
-        probability = "未知" if status.active_watch.reset_chance_percent is None else f"{status.active_watch.reset_chance_percent}%"
-        lines.extend([f"当前预测概率：{probability}", f"当前预测窗口：{status.active_watch.forecast_window}"])
+        lines.extend(_watch_body_lines(status.active_watch))
     lines.extend(_time_lines("检测时间", checked_at))
     return MailContent("[Codex Resets] 监控已启用", "\n".join(lines))
 
@@ -69,15 +81,8 @@ def render_watch(watch: WatchInfo, checked_at: datetime, *, is_update: bool) -> 
     probability = "未知" if watch.reset_chance_percent is None else f"{watch.reset_chance_percent}%"
     prefix = "重置预警已更新" if is_update else "重置预警"
     subject_probability = "概率未知" if watch.reset_chance_percent is None else f"概率 {probability}"
-    lines = [
-        "以下内容为预测，不代表已确认重置。",
-        f"预测概率：{probability}",
-        f"预测级别：{watch.level}",
-        f"预测窗口：{watch.forecast_window}",
-    ]
-    lines.extend(_time_lines("观察时间", watch.observed_at))
-    lines.extend(_time_lines("失效时间", watch.expires_at))
-    lines.extend(_source_lines(watch.text, watch.source.url))
+    lines = ["以下内容为预测，不代表已确认重置。"]
+    lines.extend(_watch_body_lines(watch))
     lines.extend(_time_lines("检测时间", checked_at))
     return MailContent(f"[Codex Resets] {prefix}：{subject_probability}", "\n".join(lines))
 

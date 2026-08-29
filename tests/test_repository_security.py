@@ -61,6 +61,17 @@ class RepositorySecurityTests(unittest.TestCase):
         self.assertTrue(uses)
         self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", value) for value in uses))
 
+    def test_monitor_checkout_uses_latest_default_branch_tip(self):
+        text = Path(".github/workflows/monitor.yml").read_text(encoding="utf-8")
+        checkout = re.search(
+            r"(?m)^\s*- uses: actions/checkout@[0-9a-f]{40}[^\n]*\n"
+            r"\s+with:\n"
+            r"\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}\s*$",
+            text,
+        )
+
+        self.assertIsNotNone(checkout)
+
     def test_all_workflow_actions_are_immutable_pins(self):
         """A mutable action tag cannot change production behavior unnoticed."""
         for path in (Path(".github/workflows/test.yml"), Path(".github/workflows/monitor.yml")):

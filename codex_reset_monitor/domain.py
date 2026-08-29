@@ -68,7 +68,7 @@ def _parse_source(payload: Mapping[str, Any]) -> SourceInfo:
 
 
 def _parse_reset(payload: Mapping[str, Any]) -> ResetInfo:
-    reset_type = _required_string(payload["type"])
+    reset_type = _required_string(payload["reset_type"])
     if reset_type not in {"regular", "banked"}:
         raise ValueError
     return ResetInfo(

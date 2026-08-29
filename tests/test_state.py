@@ -85,13 +85,21 @@ class WatchFingerprintTests(unittest.TestCase):
             {"observed_at": datetime(2026, 8, 28, 15, 0, tzinfo=timezone.utc)},
             {"expires_at": datetime(2026, 9, 5, 14, 0, tzinfo=timezone.utc)},
             {"text": "Different text."},
-            {"source": SourceInfo("official", "Another author", "https://example.test/status")},
-            {"source": SourceInfo("community", "Codex", "https://example.test/status")},
             {"source": SourceInfo("official", "Codex", "https://example.test/other")},
         ]
         for change in variants:
             with self.subTest(change=change):
                 self.assertNotEqual(watch_fingerprint(base), watch_fingerprint(make_watch(**change)))
+
+    def test_non_notified_source_metadata_does_not_change_fingerprint(self):
+        base = make_watch()
+
+        self.assertEqual(
+            watch_fingerprint(base),
+            watch_fingerprint(
+                make_watch(source=SourceInfo("community", "Another author", base.source.url))
+            ),
+        )
 
     def test_none_probability_is_material(self):
         self.assertNotEqual(watch_fingerprint(make_watch(reset_chance_percent=None)), watch_fingerprint(make_watch(reset_chance_percent=0)))

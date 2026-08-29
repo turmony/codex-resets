@@ -107,11 +107,7 @@ def watch_fingerprint(watch: WatchInfo) -> str:
             "observed_at": _timestamp(watch.observed_at),
             "expires_at": _timestamp(watch.expires_at),
             "text": watch.text,
-            "source": {
-                "type": watch.source.type,
-                "author": watch.source.author,
-                "url": watch.source.url,
-            },
+            "source_url": watch.source.url,
         }
         serialized = json.dumps(material, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

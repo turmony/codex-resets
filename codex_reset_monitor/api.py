@@ -1,4 +1,5 @@
 import json
+import math
 import time
 from typing import Callable
 from urllib.error import HTTPError, URLError
@@ -24,7 +25,7 @@ def _retry_after_seconds(error: HTTPError, fallback: int) -> int | float:
         delay = float(value)
     except (TypeError, ValueError):
         return fallback
-    if delay < 0:
+    if not math.isfinite(delay) or delay < 0:
         return fallback
     return min(delay, MAX_RETRY_AFTER_SECONDS)
 

@@ -7,7 +7,11 @@ from tests.fixtures import valid_status_payload
 
 class ParseStatusTests(unittest.TestCase):
     def test_parses_reset_watch_and_utc_timestamps(self):
-        status = parse_status(valid_status_payload())
+        payload = valid_status_payload()
+        self.assertIn("reset_type", payload["data"]["latest_reset"])
+        self.assertNotIn("type", payload["data"]["latest_reset"])
+
+        status = parse_status(payload)
         self.assertEqual(status.latest_reset.id, "reset-1")
         self.assertEqual(status.latest_reset.reset_type, "regular")
         self.assertEqual(status.active_watch.reset_chance_percent, 70)
@@ -48,7 +52,14 @@ class ParseStatusTests(unittest.TestCase):
 
     def test_rejects_unknown_reset_type(self):
         payload = valid_status_payload()
-        payload["data"]["latest_reset"]["type"] = "unexpected"
+        payload["data"]["latest_reset"]["reset_type"] = "unexpected"
+
+        with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
+            parse_status(payload)
+
+    def test_rejects_legacy_only_reset_type_field(self):
+        payload = valid_status_payload()
+        payload["data"]["latest_reset"]["type"] = payload["data"]["latest_reset"].pop("reset_type")
 
         with self.assertRaisesRegex(StatusValidationError, "invalid status response"):
             parse_status(payload)

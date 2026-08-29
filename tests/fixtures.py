@@ -3,7 +3,7 @@ def valid_status_payload():
         "data": {
             "latest_reset": {
                 "id": "reset-1",
-                "type": "regular",
+                "reset_type": "regular",
                 "announced_at": "2026-08-28T10:00:00Z",
                 "text": "A regular reset was announced.",
                 "source": {

@@ -1,5 +1,6 @@
 import io
 import json
+import math
 import unittest
 from urllib.error import HTTPError, URLError
 
@@ -80,6 +81,29 @@ class FetchStatusTests(unittest.TestCase):
         fetch_status(opener=opener, sleep=sleeps.append)
 
         self.assertEqual(sleeps, [30])
+
+    def test_non_finite_retry_after_uses_fixed_finite_delay(self):
+        for retry_after in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(retry_after=retry_after):
+                calls = []
+                sleeps = []
+
+                def opener(request, timeout):
+                    calls.append((request, timeout))
+                    if len(calls) == 1:
+                        raise HTTPError(
+                            request.full_url,
+                            429,
+                            "Too Many Requests",
+                            {"Retry-After": retry_after},
+                            io.BytesIO(),
+                        )
+                    return FakeResponse(valid_status_payload())
+
+                fetch_status(opener=opener, sleep=sleeps.append)
+
+                self.assertEqual(sleeps, [1])
+                self.assertTrue(math.isfinite(sleeps[0]))
 
     def test_does_not_retry_non_retryable_http_error(self):
         calls = []
