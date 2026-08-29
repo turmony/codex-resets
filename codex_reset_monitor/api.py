@@ -13,6 +13,7 @@ REQUEST_TIMEOUT_SECONDS = 15
 MAX_ATTEMPTS = 3
 RETRY_DELAYS_SECONDS = (1, 2)
 MAX_RETRY_AFTER_SECONDS = 30
+REQUEST_USER_AGENT = "codex-reset-monitor/1.0 (+https://github.com/turmony/codex-resets)"
 
 
 class StatusAPIError(Exception):
@@ -32,7 +33,13 @@ def _retry_after_seconds(error: HTTPError, fallback: int) -> int | float:
 
 def fetch_status(*, opener: Callable = urlopen, sleep: Callable = time.sleep) -> StatusSnapshot:
     for attempt in range(MAX_ATTEMPTS):
-        request = Request(STATUS_URL, headers={"Accept": "application/json"})
+        request = Request(
+            STATUS_URL,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": REQUEST_USER_AGENT,
+            },
+        )
         try:
             with opener(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 payload = json.loads(response.read().decode("utf-8"))

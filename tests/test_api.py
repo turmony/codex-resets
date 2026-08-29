@@ -4,7 +4,7 @@ import math
 import unittest
 from urllib.error import HTTPError, URLError
 
-from codex_reset_monitor.api import StatusAPIError, fetch_status
+from codex_reset_monitor.api import REQUEST_USER_AGENT, StatusAPIError, fetch_status
 from tests.fixtures import valid_status_payload
 
 
@@ -66,6 +66,7 @@ class FetchStatusTests(unittest.TestCase):
         request, timeout = calls[0]
         self.assertEqual(request.full_url, "https://codex-resets.com/api/v1/status")
         self.assertEqual(request.get_header("Accept"), "application/json")
+        self.assertEqual(request.get_header("User-agent"), REQUEST_USER_AGENT)
         self.assertEqual(timeout, 15)
 
     def test_caps_retry_after_for_rate_limit(self):
