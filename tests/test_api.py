@@ -66,6 +66,10 @@ class FetchStatusTests(unittest.TestCase):
         request, timeout = calls[0]
         self.assertEqual(request.full_url, "https://codex-resets.com/api/v1/status")
         self.assertEqual(request.get_header("Accept"), "application/json")
+        self.assertEqual(
+            request.get_header("User-agent"),
+            "codex-resets-email-monitor/1.0 (+https://github.com/turmony/codex-resets)",
+        )
         self.assertEqual(timeout, 15)
 
     def test_caps_retry_after_for_rate_limit(self):

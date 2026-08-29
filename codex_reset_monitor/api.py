@@ -9,6 +9,7 @@ from .domain import StatusSnapshot, StatusValidationError, parse_status
 
 
 STATUS_URL = "https://codex-resets.com/api/v1/status"
+USER_AGENT = "codex-resets-email-monitor/1.0 (+https://github.com/turmony/codex-resets)"
 REQUEST_TIMEOUT_SECONDS = 15
 MAX_ATTEMPTS = 3
 RETRY_DELAYS_SECONDS = (1, 2)
@@ -32,7 +33,10 @@ def _retry_after_seconds(error: HTTPError, fallback: int) -> int | float:
 
 def fetch_status(*, opener: Callable = urlopen, sleep: Callable = time.sleep) -> StatusSnapshot:
     for attempt in range(MAX_ATTEMPTS):
-        request = Request(STATUS_URL, headers={"Accept": "application/json"})
+        request = Request(
+            STATUS_URL,
+            headers={"Accept": "application/json", "User-Agent": USER_AGENT},
+        )
         try:
             with opener(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 payload = json.loads(response.read().decode("utf-8"))
