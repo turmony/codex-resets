@@ -22,7 +22,6 @@ _SANITIZED_ERRORS = (
     MailRenderingError,
     MonitorRunError,
     StateError,
-    StatusAPIError,
 )
 
 
@@ -47,6 +46,12 @@ def main() -> int:
             mailer.send,
             persist,
         )
+    except StatusAPIError as error:
+        if str(error) == "Codex Resets API request failed (HTTP 403)":
+            print(f"monitor skipped: {error}", file=sys.stderr)
+            return 0
+        print(f"monitor failed: {error}", file=sys.stderr)
+        return 1
     except _SANITIZED_ERRORS as error:
         print(f"monitor failed: {error}", file=sys.stderr)
         return 1

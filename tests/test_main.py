@@ -102,6 +102,28 @@ class MainTests(unittest.TestCase):
         self.assertNotIn(mailbox, stderr.getvalue())
         self.assertNotIn(auth_code, stderr.getvalue())
 
+    def test_http_403_status_error_is_treated_as_non_fatal_skip(self):
+        stderr = io.StringIO()
+        with (
+            patch.dict(
+                os.environ,
+                {"QQ_EMAIL": "monitor@qq.com", "QQ_SMTP_AUTH_CODE": "sample-auth-code"},
+                clear=True,
+            ),
+            patch(
+                "codex_reset_monitor.__main__.fetch_status",
+                side_effect=StatusAPIError("Codex Resets API request failed (HTTP 403)"),
+            ),
+            redirect_stderr(stderr),
+        ):
+            result = main()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            stderr.getvalue(),
+            "monitor skipped: Codex Resets API request failed (HTTP 403)\n",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
