@@ -11,8 +11,8 @@ class StatusValidationError(Exception):
 @dataclass(frozen=True)
 class SourceInfo:
     type: str
-    author: str
-    url: str
+    author: str | None
+    url: str | None
 
 
 @dataclass(frozen=True)
@@ -60,8 +60,14 @@ def _required_string(value: object) -> str:
 
 
 def _parse_source(payload: Mapping[str, Any]) -> SourceInfo:
+    source_type = _required_string(payload["type"])
+    if source_type == "observed":
+        url = _required_string(payload["url"]) if "url" in payload else None
+        return SourceInfo(source_type, None, url)
+    if source_type != "x_post":
+        raise ValueError
     return SourceInfo(
-        type=_required_string(payload["type"]),
+        type=source_type,
         author=_required_string(payload["author"]),
         url=_required_string(payload["url"]),
     )

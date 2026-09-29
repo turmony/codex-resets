@@ -1,32 +1,34 @@
-# Codex Resets QQ 邮件监控
+# Codex Resets 126 邮件监控
 
 [English](README.md) | 简体中文
 
 [![测试](https://github.com/turmony/codex-resets/actions/workflows/test.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/test.yml)
 [![监控](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml)
 
-一个基于 GitHub Actions 的轻量监控工具，每小时检查 Codex Resets 公开状态 API，并通过 QQ 邮箱发送重置预测和公告。
+一个基于 GitHub Actions 的轻量监控工具，每小时检查 Codex Resets 公开状态 API，并通过网易 126 邮箱发送重置预测和公告。
 
 ## 主要功能
 
 - 每小时整点运行，无需单独服务器。
 - 发送启用、预测、预测更新和确认重置邮件。
-- 使用同一个 QQ 邮箱发信和收信。
+- 使用同一个 126 邮箱发信和收信。
 - 仅在 `state.json` 中保存公开通知标记，避免重复提醒。
 
 ## 快速部署
 
 1. Fork 本仓库，或将代码推送到一个公开 GitHub 仓库。
-2. 在 QQ 邮箱中启用 SMTP 服务并生成 SMTP 授权码。
+2. 在网易 126 邮箱中开启 **IMAP/SMTP 服务**并生成 SMTP 授权码；无需开启 POP3/SMTP。
 3. 在 **Settings → Secrets and variables → Actions** 中添加两个仓库 Secrets：
 
    | Secret | 内容 |
    | --- | --- |
-   | `QQ_EMAIL` | 你的 QQ 邮箱地址 |
-   | `QQ_SMTP_AUTH_CODE` | QQ SMTP 授权码 |
+   | `MAIL_EMAIL` | 你的 126 邮箱地址 |
+   | `MAIL_SMTP_AUTH_CODE` | 126 SMTP 授权码，不是邮箱登录密码 |
 
 4. 在 **Settings → Actions → General → Workflow permissions** 中选择 **Read and write permissions**。
 5. 打开 **Actions → Monitor Codex Resets**，手动运行一次。首次成功运行会发送启用邮件并创建 `state.json`。
+
+从 QQ 邮箱迁移已有监控时，在 Actions Secrets 中改用 `MAIL_EMAIL` 和 `MAIL_SMTP_AUTH_CODE`。原有通知状态会保留，因此公开状态未变化时手动运行不会发信。若希望新邮箱收到一次启用邮件，可先将 `state.json` 恢复为初始值，再手动运行。
 
 ## 通知规则
 
@@ -36,7 +38,7 @@
 
 ## 安全与限制
 
-- 不要提交或公开 QQ 邮箱、授权码、密码或令牌。
+- 不要提交或公开 126 邮箱、授权码、密码或令牌。
 - Secrets 仅供生产工作流使用，拉取请求测试不会读取它们。
 - `state.json` 只包含公开 API 派生的通知标记。
 - 本项目展示第三方的全局状态信息，无法读取个人 Codex 额度、用量或账户状态；预测不构成 OpenAI 服务承诺。

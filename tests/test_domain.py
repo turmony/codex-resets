@@ -6,6 +6,36 @@ from tests.fixtures import valid_status_payload
 
 
 class ParseStatusTests(unittest.TestCase):
+    def test_accepts_documented_observed_watch_without_author_or_url(self):
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["source"] = {"type": "observed"}
+
+        status = parse_status(payload)
+
+        self.assertEqual(status.active_watch.source.type, "observed")
+        self.assertIsNone(status.active_watch.source.author)
+        self.assertIsNone(status.active_watch.source.url)
+
+    def test_accepts_documented_observed_reset_with_optional_url(self):
+        payload = valid_status_payload()
+        payload["data"]["latest_reset"]["source"] = {
+            "type": "observed", "url": "https://example.test/reset"
+        }
+
+        status = parse_status(payload)
+
+        self.assertIsNone(status.latest_reset.source.author)
+        self.assertEqual(status.latest_reset.source.url, "https://example.test/reset")
+
+    def test_rejects_null_observed_url_when_field_is_present(self):
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["source"] = {
+            "type": "observed", "url": None
+        }
+
+        with self.assertRaises(StatusValidationError):
+            parse_status(payload)
+
     def test_parses_reset_watch_and_utc_timestamps(self):
         payload = valid_status_payload()
         self.assertIn("reset_type", payload["data"]["latest_reset"])

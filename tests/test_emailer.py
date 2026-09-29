@@ -37,6 +37,18 @@ class FakeSMTP:
 
 
 class RenderMailTests(unittest.TestCase):
+    def test_observed_watch_without_url_has_site_credit_and_no_empty_link(self):
+        from codex_reset_monitor.emailer import render_watch
+
+        payload = valid_status_payload()
+        payload["data"]["active_watch"]["source"] = {"type": "observed"}
+        watch = parse_status(payload).active_watch
+
+        content = render_watch(watch, datetime(2026, 8, 28, 14, 0, tzinfo=timezone.utc), is_update=False)
+
+        self.assertIn("https://codex-resets.com", content.body)
+        self.assertNotIn("来源链接：None", content.body)
+
     def setUp(self):
         self.payload = valid_status_payload()
         self.payload["data"]["latest_reset"]["announced_at"] = "2026-08-27T16:35:05Z"
@@ -141,7 +153,7 @@ class RenderMailTests(unittest.TestCase):
         self.assertIn("检测时间：2026-08-28 14:00:00 UTC", content.body)
 
 
-class QQMailerTests(unittest.TestCase):
+class NetEase126MailerTests(unittest.TestCase):
     def setUp(self):
         from codex_reset_monitor.emailer import MailContent
 
@@ -149,43 +161,43 @@ class QQMailerTests(unittest.TestCase):
         FakeSMTP.failure = None
         self.content = MailContent("[Codex Resets] 测试", "中文正文")
 
-    def test_sends_utf8_message_over_qq_smtp(self):
-        from codex_reset_monitor.emailer import QQMailer
+    def test_sends_utf8_message_over_126_smtp(self):
+        from codex_reset_monitor.emailer import NetEase126Mailer
 
-        QQMailer("monitor@qq.com", "auth-code", smtp_factory=FakeSMTP).send(self.content)
+        NetEase126Mailer("monitor@126.com", "auth-code", smtp_factory=FakeSMTP).send(self.content)
 
         smtp = FakeSMTP.instances[0]
-        self.assertEqual((smtp.host, smtp.port, smtp.timeout), ("smtp.qq.com", 465, 20))
-        self.assertEqual(smtp.login_arguments, ("monitor@qq.com", "auth-code"))
+        self.assertEqual((smtp.host, smtp.port, smtp.timeout), ("smtp.126.com", 465, 20))
+        self.assertEqual(smtp.login_arguments, ("monitor@126.com", "auth-code"))
         message = smtp.messages[0]
-        self.assertEqual(message["From"], "monitor@qq.com")
-        self.assertEqual(message["To"], "monitor@qq.com")
+        self.assertEqual(message["From"], "monitor@126.com")
+        self.assertEqual(message["To"], "monitor@126.com")
         self.assertEqual(message["Subject"], "[Codex Resets] 测试")
         self.assertEqual(message.get_content(), "中文正文\n")
 
-    def test_rejects_non_qq_address_without_leaking_it(self):
-        from codex_reset_monitor.emailer import MailConfigurationError, QQMailer
+    def test_rejects_non_126_address_without_leaking_it(self):
+        from codex_reset_monitor.emailer import MailConfigurationError, NetEase126Mailer
 
-        with self.assertRaisesRegex(MailConfigurationError, "^QQ email configuration is invalid$"):
-            QQMailer("monitor@example.com", "auth-code", smtp_factory=FakeSMTP)
+        with self.assertRaisesRegex(MailConfigurationError, "^126 email configuration is invalid$"):
+            NetEase126Mailer("monitor@example.com", "auth-code", smtp_factory=FakeSMTP)
 
     def test_rejects_empty_authorization_code(self):
-        from codex_reset_monitor.emailer import MailConfigurationError, QQMailer
+        from codex_reset_monitor.emailer import MailConfigurationError, NetEase126Mailer
 
-        with self.assertRaisesRegex(MailConfigurationError, "^QQ email configuration is invalid$"):
-            QQMailer("monitor@qq.com", "", smtp_factory=FakeSMTP)
+        with self.assertRaisesRegex(MailConfigurationError, "^126 email configuration is invalid$"):
+            NetEase126Mailer("monitor@126.com", "", smtp_factory=FakeSMTP)
 
     def test_retries_smtp_and_os_errors_then_sanitizes_failure(self):
-        from codex_reset_monitor.emailer import MailDeliveryError, QQMailer
+        from codex_reset_monitor.emailer import MailDeliveryError, NetEase126Mailer
 
         for error in (smtplib.SMTPException, OSError):
             with self.subTest(error=error.__name__):
                 FakeSMTP.instances = []
                 FakeSMTP.failure = error
                 sleeps = []
-                mailer = QQMailer("private@qq.com", "private-auth", smtp_factory=FakeSMTP, sleep=sleeps.append)
+                mailer = NetEase126Mailer("private@126.com", "private-auth", smtp_factory=FakeSMTP, sleep=sleeps.append)
 
-                with self.assertRaisesRegex(MailDeliveryError, "^QQ SMTP delivery failed$"):
+                with self.assertRaisesRegex(MailDeliveryError, "^126 SMTP delivery failed$"):
                     mailer.send(self.content)
 
                 self.assertEqual(len(FakeSMTP.instances), 2)

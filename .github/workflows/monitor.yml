@@ -26,8 +26,8 @@ jobs:
         id: monitor
         continue-on-error: true
         env:
-          QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
-          QQ_SMTP_AUTH_CODE: ${{ secrets.QQ_SMTP_AUTH_CODE }}
+          MAIL_EMAIL: ${{ secrets.MAIL_EMAIL }}
+          MAIL_SMTP_AUTH_CODE: ${{ secrets.MAIL_SMTP_AUTH_CODE }}
         run: python -m codex_reset_monitor
       - name: Persist updated public state
         if: always()

@@ -7,8 +7,8 @@ def valid_status_payload():
                 "announced_at": "2026-08-28T10:00:00Z",
                 "text": "A regular reset was announced.",
                 "source": {
-                    "type": "official",
-                    "author": "Codex Resets",
+                    "type": "x_post",
+                    "author": "thsottiaux",
                     "url": "https://codex-resets.com/resets/reset-1",
                 },
             },
@@ -20,8 +20,8 @@ def valid_status_payload():
                 "expires_at": "2026-08-29T11:00:00+01:00",
                 "text": "A reset is being watched.",
                 "source": {
-                    "type": "analysis",
-                    "author": "Codex Resets",
+                    "type": "x_post",
+                    "author": "thsottiaux",
                     "url": "https://codex-resets.com/watches/active",
                 },
             },

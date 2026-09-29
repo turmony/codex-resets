@@ -21,7 +21,7 @@ class MainTests(unittest.TestCase):
             result = main()
 
         self.assertEqual(result, 1)
-        self.assertEqual(stderr.getvalue(), "monitor failed: QQ email configuration is invalid\n")
+        self.assertEqual(stderr.getvalue(), "monitor failed: 126 email configuration is invalid\n")
 
     def test_success_uses_relative_state_path_and_returns_zero(self):
         state = MonitorState.initial()
@@ -60,12 +60,12 @@ class MainTests(unittest.TestCase):
         with (
             patch.dict(
                 os.environ,
-                {"QQ_EMAIL": "monitor@qq.com", "QQ_SMTP_AUTH_CODE": "sample-auth-code"},
+                {"MAIL_EMAIL": "monitor@126.com", "MAIL_SMTP_AUTH_CODE": "sample-auth-code"},
                 clear=True,
             ),
             patch("codex_reset_monitor.__main__.load_state", side_effect=load),
             patch("codex_reset_monitor.__main__.fetch_status", return_value=status),
-            patch("codex_reset_monitor.__main__.QQMailer", FakeMailer),
+            patch("codex_reset_monitor.__main__.NetEase126Mailer", FakeMailer),
             patch("codex_reset_monitor.__main__.process_status", side_effect=process),
             patch("codex_reset_monitor.__main__.save_state", side_effect=save),
         ):
@@ -80,13 +80,13 @@ class MainTests(unittest.TestCase):
 
     def test_known_adapter_failure_is_sanitized_without_environment_values(self):
         stderr = io.StringIO()
-        mailbox = "sample-mailbox@qq.com"
+        mailbox = "sample-mailbox@126.com"
         auth_code = "sample-authorization-code"
 
         with (
             patch.dict(
                 os.environ,
-                {"QQ_EMAIL": mailbox, "QQ_SMTP_AUTH_CODE": auth_code},
+                {"MAIL_EMAIL": mailbox, "MAIL_SMTP_AUTH_CODE": auth_code},
                 clear=True,
             ),
             patch(

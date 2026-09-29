@@ -11,11 +11,11 @@ from .domain import ResetInfo, StatusSnapshot, WatchInfo
 
 
 class MailConfigurationError(Exception):
-    """Raised when QQ SMTP settings are invalid."""
+    """Raised when SMTP settings are invalid."""
 
 
 class MailDeliveryError(Exception):
-    """Raised when a QQ SMTP delivery cannot be completed."""
+    """Raised when an SMTP delivery cannot be completed."""
 
 
 class MailRenderingError(Exception):
@@ -48,8 +48,12 @@ def _time_lines(label: str, value: datetime) -> list[str]:
     return [f"{label}：{utc_time}", f"{label}：{beijing_time}"]
 
 
-def _source_lines(text: str, url: str) -> list[str]:
-    return [f"公告原文：{text}", f"来源链接：{url}"]
+def _source_lines(text: str, url: str | None) -> list[str]:
+    lines = [f"公告原文：{text}"]
+    if url:
+        lines.append(f"来源链接：{url}")
+    lines.append("数据来源：Codex Resets https://codex-resets.com")
+    return lines
 
 
 def _watch_body_lines(watch: WatchInfo) -> list[str]:
@@ -95,7 +99,7 @@ def render_reset(reset: ResetInfo, checked_at: datetime) -> MailContent:
     return MailContent("[Codex Resets] Codex 已重置", "\n".join(lines))
 
 
-class QQMailer:
+class NetEase126Mailer:
     def __init__(
         self,
         email: str,
@@ -105,11 +109,11 @@ class QQMailer:
     ):
         if (
             not isinstance(email, str)
-            or not email.strip().lower().endswith("@qq.com")
+            or not email.strip().lower().endswith("@126.com")
             or not isinstance(auth_code, str)
             or not auth_code.strip()
         ):
-            raise MailConfigurationError("QQ email configuration is invalid")
+            raise MailConfigurationError("126 email configuration is invalid")
         self._email = email.strip()
         self._auth_code = auth_code
         self._smtp_factory = smtp_factory
@@ -125,7 +129,7 @@ class QQMailer:
         for attempt in range(2):
             try:
                 with self._smtp_factory(
-                    "smtp.qq.com", 465, timeout=20, context=ssl.create_default_context()
+                    "smtp.126.com", 465, timeout=20, context=ssl.create_default_context()
                 ) as smtp:
                     smtp.login(self._email, self._auth_code)
                     smtp.send_message(message)
@@ -133,4 +137,4 @@ class QQMailer:
             except (smtplib.SMTPException, OSError):
                 if attempt == 0:
                     self._sleep(1)
-        raise MailDeliveryError("QQ SMTP delivery failed") from None
+        raise MailDeliveryError("126 SMTP delivery failed") from None

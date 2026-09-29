@@ -7,13 +7,13 @@ import unittest
 from codex_reset_monitor.state import MonitorState
 
 
-_QQ_MAILBOX = re.compile(r"(?i)\b[0-9]{5,12}@qq\.com\b")
+_PRIVATE_MAILBOX = re.compile(r"(?i)\b[A-Z0-9._%+-]+@(?:qq|126)\.com\b")
 _PINNED_ACTION = re.compile(r"uses:\s+[^@]+@([^\s#]+)")
 
 
 class RepositorySecurityTests(unittest.TestCase):
-    def test_public_artifacts_contain_no_numeric_qq_mailbox(self):
-        """A real QQ mailbox accidentally committed to public artifacts is rejected."""
+    def test_public_artifacts_contain_no_mailbox_address(self):
+        """A mailbox accidentally committed to public artifacts is rejected."""
         artifacts = [
             *Path("codex_reset_monitor").glob("*.py"),
             Path(".github/workflows/test.yml"),
@@ -25,7 +25,7 @@ class RepositorySecurityTests(unittest.TestCase):
             artifacts.append(state_path)
 
         matches = {
-            path: _QQ_MAILBOX.findall(path.read_text(encoding="utf-8"))
+            path: _PRIVATE_MAILBOX.findall(path.read_text(encoding="utf-8"))
             for path in artifacts
         }
 

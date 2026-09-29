@@ -10,7 +10,7 @@ from .emailer import (
     MailConfigurationError,
     MailDeliveryError,
     MailRenderingError,
-    QQMailer,
+    NetEase126Mailer,
 )
 from .monitor import MonitorRunError, process_status
 from .state import StateError, load_state, save_state
@@ -29,9 +29,9 @@ _SANITIZED_ERRORS = (
 def main() -> int:
     """Run one monitor check and return a shell-compatible exit status."""
     try:
-        mailer = QQMailer(
-            os.environ.get("QQ_EMAIL"),
-            os.environ.get("QQ_SMTP_AUTH_CODE"),
+        mailer = NetEase126Mailer(
+            os.environ.get("MAIL_EMAIL"),
+            os.environ.get("MAIL_SMTP_AUTH_CODE"),
         )
         state_path = Path("state.json")
         state = load_state(state_path)
