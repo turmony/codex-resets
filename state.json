@@ -1,7 +1,7 @@
 {
-  "active_watch_fingerprint": "6c4ebff5a6473c3691c1c15b53ff6bb6104302b43d37f528274d58c15489bc48",
+  "active_watch_fingerprint": null,
   "initialized": true,
-  "notified_reset_id": "2103911959544610829",
-  "state_updated_at": "2026-09-29T06:42:24.890522Z",
+  "notified_reset_id": "observed-20260929T190000Z",
+  "state_updated_at": "2026-09-30T03:23:01.572775Z",
   "version": 1
 }
