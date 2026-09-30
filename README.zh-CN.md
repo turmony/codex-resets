@@ -5,11 +5,11 @@
 [![测试](https://github.com/turmony/codex-resets/actions/workflows/test.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/test.yml)
 [![监控](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml)
 
-一个基于 GitHub Actions 的轻量监控工具，每小时检查 Codex Resets 公开状态 API，并通过网易 126 邮箱发送重置预测和公告。
+一个基于 GitHub Actions 的轻量监控工具，每隔 3 小时检查 Codex Resets 公开状态 API，并通过网易 126 邮箱发送重置预测和公告。
 
 ## 主要功能
 
-- 每小时整点运行，无需单独服务器。
+- 北京时间每隔 3 小时的半点运行，无需单独服务器。
 - 发送启用、预测、预测更新和确认重置邮件。
 - 使用同一个 126 邮箱发信和收信。
 - 仅在 `state.json` 中保存公开通知标记，避免重复提醒。
@@ -32,7 +32,7 @@
 
 ## 通知规则
 
-工作流使用 `0 * * * *`，即 UTC 和北京时间的每个整点运行；GitHub Actions 可能延迟数分钟启动。
+工作流使用 UTC 时间 `30 1-22/3 * * *`，对应北京时间 00:30、03:30、06:30、……、21:30。GitHub Actions 定时调度可能延迟或跳过，无法保证准时执行。
 
 监控启用时，以及公开预测或确认重置发生变化时才会发信。如果数据源只提供预测窗口，没有准确时间或时区，本项目不会自行推测具体重置时刻。
 

@@ -54,7 +54,7 @@ class RepositorySecurityTests(unittest.TestCase):
 
     def test_monitor_schedule_permissions_and_pins(self):
         text = Path(".github/workflows/monitor.yml").read_text(encoding="utf-8")
-        self.assertIn('cron: "0 * * * *"', text)
+        self.assertIn('cron: "30 1-22/3 * * *"', text)
         self.assertIn("workflow_dispatch: {}", text)
         self.assertIn("contents: write", text)
         self.assertNotIn("pull_request:", text)
