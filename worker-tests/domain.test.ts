@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseStatus, timestamp, watchFingerprint } from '../worker/domain';
 import { planNotifications } from '../worker/monitor';
-import { mimeMessage } from '../worker/emailer';
+import { mimeMessage, renderActivation } from '../worker/emailer';
 import { payload } from './fixtures';
 
 describe('status and legacy compatibility', () => {
@@ -9,7 +9,12 @@ describe('status and legacy compatibility', () => {
     expect(await watchFingerprint(parseStatus(payload()).active_watch!)).toBe('fbd076f7df28475f4f6269e897bf3d47adaedfa3f337fd637fc9b745ca815410');
     expect(timestamp('2026-08-28T11:00:00.1234567+01:00')).toBe('2026-08-28T10:00:00.123456Z');
   });
-  it.each(['2026-02-30T00:00:00Z', '2026-01-01T24:00:00Z', '2026-01-01T00:00:00', '2026-01-01T00:00:00+24:00'])('rejects invalid timestamp %s', value => { expect(() => timestamp(value)).toThrow(); });
+  it.each(['2026-02-30T00:00:00Z', '2026-01-01T24:00:00Z', '2026-01-01T00:00:00', '2026-01-01T00:00:00+24:00', '0000-01-01T00:00:00Z', '9999-12-31T23:59:59-01:00'])('rejects invalid timestamp %s', value => { expect(() => timestamp(value)).toThrow(); });
+  it('uses the original Asia/Shanghai timezone, including historical daylight saving', () => {
+    const content = renderActivation({ latest_reset: null, active_watch: null, generated_at: '1991-07-01T00:00:00Z' }, '1991-07-01T00:00:00Z');
+    expect(content.body).toContain('1991-07-01 00:00:00 UTC');
+    expect(content.body).toContain('1991-07-01 09:00:00 北京时间');
+  });
   it('rejects malformed status without converting false into zero probability', () => {
     const data = payload();
     expect(() => parseStatus({ ...data, data: { ...data.data, active_watch: { ...data.data.active_watch, reset_chance_percent: false } } })).toThrow();

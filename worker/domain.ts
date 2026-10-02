@@ -20,8 +20,9 @@ export function timestamp(value: unknown): string {
   const date = new Date(`${day}T${hh}:${mm}:${ss}${offset}`);
   // Date.parse normalizes invalid dates; reject them instead, just like Python.
   const local = new Date(`${day}T00:00:00Z`);
-  if (Number(hh) > 23 || Number(mm) > 59 || Number(ss) > 59 ||
+  if (Number(day.slice(0, 4)) < 1 || Number(hh) > 23 || Number(mm) > 59 || Number(ss) > 59 ||
       !Number.isFinite(date.getTime()) || !Number.isFinite(local.getTime()) || local.toISOString().slice(0, 10) !== day ||
+      date.getUTCFullYear() < 1 || date.getUTCFullYear() > 9999 ||
       (offset !== 'Z' && (Number(offset.slice(1, 3)) > 23 || Number(offset.slice(4)) > 59))) throw new Error('invalid timestamp');
   const micros = (fraction ?? '').slice(0, 6).padEnd(6, '0');
   return date.toISOString().slice(0, 19) + (micros === '000000' ? '' : `.${micros}`) + 'Z';

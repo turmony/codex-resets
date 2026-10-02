@@ -4,7 +4,13 @@ export interface MailContent { subject: string; body: string }
 function times(label: string, time: string): string[] {
   const utc = new Date(time);
   const fmt = (d: Date) => d.toISOString().slice(0, 19).replace('T', ' ');
-  return [`${label}：${fmt(utc)} UTC`, `${label}：${fmt(new Date(utc.getTime() + 8 * 3600000))} 北京时间`];
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(utc);
+  const fields = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  const beijing = `${fields.year.padStart(4, '0')}-${fields.month}-${fields.day} ${fields.hour}:${fields.minute}:${fields.second}`;
+  return [`${label}：${fmt(utc)} UTC`, `${label}：${beijing} 北京时间`];
 }
 function source(text: string, url: string | null): string[] {
   return [`公告原文：${text}`, ...(url ? [`来源链接：${url}`] : []), '数据来源：Codex Resets https://codex-resets.com'];
