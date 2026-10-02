@@ -9,6 +9,11 @@ describe('Worker HTTP entry', () => {
     const data = await response.json(); expect(data).toMatchObject({ schedule: '30 1-22/3 * * *' });
     expect(JSON.stringify(data)).not.toContain('state_json');
   });
+  it('reports paused monitoring and invalid mail configuration accurately', async () => {
+    const testEnv = { ...env, MONITOR_ENABLED: 'false', MAIL_EMAIL: 'invalid', MAIL_SMTP_AUTH_CODE: 'fixture' };
+    const response = await worker.fetch(new Request('https://monitor.test/health'), testEnv);
+    expect(await response.json()).toMatchObject({ enabled: false, configured: false });
+  });
   it('requires authentication before manual checks, status, or mail verification', async () => {
     for (const path of ['/check', '/status', '/verify-mail']) {
       const response = await worker.fetch(new Request('https://monitor.test' + path, { method: 'POST' }), env);

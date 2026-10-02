@@ -21,6 +21,11 @@ async function pending(kind: 'forecast' | 'reset' = 'forecast', status: 'sending
   return { snapshot, row };
 }
 describe('D1 and notification recovery', () => {
+  it('can be paused without fetching status or sending mail', async () => {
+    const deps = dependencies();
+    expect((await runMonitor({ ...env, MONITOR_ENABLED: 'false' }, deps)).result).toBe('disabled');
+    expect(deps.fetchStatus).not.toHaveBeenCalled(); expect(deps.send).not.toHaveBeenCalled();
+  });
   it('sends activation once and atomically records reset and forecast markers', async () => {
     const deps = dependencies();
     expect((await runMonitor(env, deps)).sent).toBe(1);

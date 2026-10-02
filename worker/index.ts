@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { runMonitor } from './monitor';
+import { validateMail } from './emailer';
 
 async function authorized(request: Request, token: string | undefined): Promise<boolean> {
   if (!token || !request.headers.get('Authorization')?.startsWith('Bearer ')) return false;
@@ -16,7 +17,11 @@ function json(value: unknown, status = 200): Response {
 export default {
   async fetch(request, env): Promise<Response> {
     const path = new URL(request.url).pathname;
-    if (path === '/health' && request.method === 'GET') return json({ service: 'codex-resets-monitor', schedule: '30 1-22/3 * * *', configured: !!env.MAIL_EMAIL && !!env.MAIL_SMTP_AUTH_CODE });
+    if (path === '/health' && request.method === 'GET') {
+      let configured = true;
+      try { validateMail(env.MAIL_EMAIL, env.MAIL_SMTP_AUTH_CODE); } catch { configured = false; }
+      return json({ service: 'codex-resets-monitor', schedule: '30 1-22/3 * * *', enabled: env.MONITOR_ENABLED === 'true', configured });
+    }
     if (!['/status', '/check', '/verify-mail'].includes(path)) return json({ error: 'not found' }, 404);
     if (!await authorized(request, env.ADMIN_TOKEN)) return json({ error: 'unauthorized' }, 401);
     try {
