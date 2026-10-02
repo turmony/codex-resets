@@ -1,4 +1,4 @@
-import type { ResetInfo, StatusSnapshot, WatchInfo } from './domain';
+import type { ResetInfo, ScheduledResetInfo, StatusSnapshot, WatchInfo } from './domain';
 
 export interface MailContent { subject: string; body: string }
 function times(label: string, time: string): string[] {
@@ -31,6 +31,19 @@ export function renderWatch(watch: WatchInfo, checkedAt: string, isUpdate: boole
 }
 export function renderReset(reset: ResetInfo, checkedAt: string): MailContent {
   return { subject: '[Codex Resets] Codex 已重置', body: [`重置类型：${reset.reset_type}`, ...times('公告时间', reset.announced_at), ...source(reset.text, reset.source.url), ...times('检测时间', checkedAt)].join('\n') };
+}
+export function renderScheduled(reset: ScheduledResetInfo, checkedAt: string, isUpdate: boolean): MailContent {
+  const pending = reset.scheduled_for !== null && Date.parse(reset.scheduled_for) <= Date.parse(checkedAt);
+  return {
+    subject: `[Codex Resets] 重置计划已${isUpdate ? '更新' : '公布'}`,
+    body: [
+      '以下内容为已公布的重置计划，实际完成仍需后续确认。',
+      ...(pending ? ['计划时间已过，仍等待实际完成确认。'] : []),
+      `重置类型：${reset.reset_type}`,
+      ...(reset.scheduled_for === null ? ['计划时间：尚未明确'] : times('计划时间', reset.scheduled_for)),
+      ...times('公告时间', reset.announced_at), ...source(reset.text, reset.source.url), ...times('检测时间', checkedAt),
+    ].join('\n'),
+  };
 }
 export function base64(value: string): string {
   let binary = '';

@@ -116,7 +116,7 @@ dt{color:#536277}dd{margin:0;overflow-wrap:anywhere}.record{padding:12px 0;borde
 export const js = `
 'use strict';
 const get = id => document.getElementById(id);
-const kinds = { activation: '启用通知', forecast: '预测通知', reset: '确认重置' };
+const kinds = { activation: '启用通知', forecast: '预测通知', scheduled: '重置计划', reset: '确认重置' };
 const statuses = { pending: '等待发送', sending: '正在提交', uncertain: '等待核对发送结果', accepted: '已接受，等待记录', sent: '已提交', cancelled: '已取消' };
 const results = { ok: '检查成功', partial: '部分通知待处理', failed: '检查失败', busy: '已有检查正在执行', disabled: '监控已暂停', unconfigured: '邮件配置不完整' };
 const errors = { 'smtp outcome uncertain': '发送结果不确定，等待邮件核对', 'smtp submission failed': '邮件提交失败，等待重试', 'event expired or superseded': '事件已过期或已被更新', 'event expired': '事件已过期', 'event superseded': '事件已被更新' };

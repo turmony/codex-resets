@@ -37,7 +37,7 @@ describe('D1 and notification recovery', () => {
     expect(deps.send).toHaveBeenCalledTimes(1);
   });
   it('supports null marker fields in a first activation without breaking the state schema', async () => {
-    const deps = dependencies({ active_watch: null, latest_reset: null, generated_at: new Date().toISOString() });
+    const deps = dependencies({ active_watch: null, latest_reset: null, scheduled_reset: null, generated_at: new Date().toISOString() });
     await runMonitor(env, deps);
     expect(await new Store(env.DB).state()).toMatchObject({ initialized: true, notified_reset_id: null, active_watch_fingerprint: null });
   });

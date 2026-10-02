@@ -1,13 +1,14 @@
 import { parseState, type MonitorState } from './domain';
 import type { MailContent } from './emailer';
 
-export type Kind = 'activation' | 'forecast' | 'reset';
+export type Kind = 'activation' | 'forecast' | 'scheduled' | 'reset';
 export type DeliveryStatus = 'pending' | 'sending' | 'uncertain' | 'accepted' | 'sent' | 'cancelled';
 export interface NotificationPayload {
   content: MailContent;
   patch: Partial<MonitorState>;
   expiresAt: string | null;
   fingerprint: string | null;
+  scheduledResetId?: string;
 }
 export interface NotificationRow {
   event_id: string; kind: Kind; status: DeliveryStatus; payload_json: string;
@@ -54,6 +55,10 @@ export class Store {
   async recoverable(): Promise<NotificationRow[]> {
     const result = await this.session.prepare("SELECT * FROM notifications WHERE status IN ('pending','sending','uncertain','accepted') ORDER BY created_at, event_id LIMIT 32").all<NotificationRow>();
     return result.results;
+  }
+  async hasSentScheduled(resetId: string): Promise<boolean> {
+    return !!await this.session.prepare("SELECT event_id FROM notifications WHERE kind = 'scheduled' AND status = 'sent' AND json_extract(payload_json, '$.scheduledResetId') = ? LIMIT 1")
+      .bind(resetId).first();
   }
   async prepare(plan: NotificationPlan): Promise<NotificationRow> {
     await this.assertLease();

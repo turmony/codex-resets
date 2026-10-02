@@ -11,7 +11,7 @@ describe('status and legacy compatibility', () => {
   });
   it.each(['2026-02-30T00:00:00Z', '2026-01-01T24:00:00Z', '2026-01-01T00:00:00', '2026-01-01T00:00:00+24:00', '0000-01-01T00:00:00Z', '9999-12-31T23:59:59-01:00'])('rejects invalid timestamp %s', value => { expect(() => timestamp(value)).toThrow(); });
   it('uses the original Asia/Shanghai timezone, including historical daylight saving', () => {
-    const content = renderActivation({ latest_reset: null, active_watch: null, generated_at: '1991-07-01T00:00:00Z' }, '1991-07-01T00:00:00Z');
+    const content = renderActivation({ latest_reset: null, scheduled_reset: null, active_watch: null, generated_at: '1991-07-01T00:00:00Z' }, '1991-07-01T00:00:00Z');
     expect(content.body).toContain('1991-07-01 00:00:00 UTC');
     expect(content.body).toContain('1991-07-01 09:00:00 北京时间');
   });

@@ -1,7 +1,8 @@
 export interface SourceInfo { type: 'observed' | 'x_post'; author: string | null; url: string | null }
 export interface ResetInfo { id: string; reset_type: 'regular' | 'banked'; announced_at: string; text: string; source: SourceInfo }
+export interface ScheduledResetInfo extends ResetInfo { status: 'scheduled'; scheduled_for: string | null }
 export interface WatchInfo { level: 'elevated' | 'strong'; reset_chance_percent: number | null; forecast_window: string; observed_at: string; expires_at: string; text: string; source: SourceInfo }
-export interface StatusSnapshot { latest_reset: ResetInfo | null; active_watch: WatchInfo | null; generated_at: string }
+export interface StatusSnapshot { latest_reset: ResetInfo | null; scheduled_reset: ScheduledResetInfo | null; active_watch: WatchInfo | null; generated_at: string }
 export interface MonitorState { version: 1; initialized: boolean; notified_reset_id: string | null; active_watch_fingerprint: string | null; state_updated_at: string | null }
 
 function object(value: unknown): Record<string, unknown> {
@@ -47,7 +48,17 @@ export function parseStatus(value: unknown): StatusSnapshot {
         (chance !== null && (typeof chance !== 'number' || !Number.isInteger(chance) || chance < 0 || chance > 100))) throw new Error('invalid forecast');
     active_watch = { level: v.level, reset_chance_percent: chance as number | null, forecast_window: text(v.forecast_window), observed_at: timestamp(v.observed_at), expires_at: timestamp(v.expires_at), text: text(v.text), source: source(v.source) };
   }
-  return { latest_reset, active_watch, generated_at: timestamp(meta.generated_at) };
+  let scheduled_reset: ScheduledResetInfo | null = null;
+  // Older snapshots did not expose scheduled_reset; keep them readable.
+  if (data.scheduled_reset !== null && data.scheduled_reset !== undefined) {
+    const v = object(data.scheduled_reset);
+    if (v.status !== 'scheduled' || (v.reset_type !== 'regular' && v.reset_type !== 'banked')) throw new Error('invalid scheduled reset');
+    scheduled_reset = {
+      id: text(v.id), status: v.status, reset_type: v.reset_type, announced_at: timestamp(v.announced_at),
+      scheduled_for: v.scheduled_for === null ? null : timestamp(v.scheduled_for), text: text(v.text), source: source(v.source),
+    };
+  }
+  return { latest_reset, scheduled_reset, active_watch, generated_at: timestamp(meta.generated_at) };
 }
 export function parseState(value: unknown): MonitorState {
   const v = object(value);
@@ -78,5 +89,17 @@ export async function watchFingerprint(watch: WatchInfo): Promise<string> {
   }));
 }
 export function effectiveStatus(status: StatusSnapshot, now: number): StatusSnapshot {
-  return { ...status, active_watch: status.active_watch && Date.parse(status.active_watch.expires_at) > now ? status.active_watch : null };
+  return {
+    ...status,
+    active_watch: status.active_watch && Date.parse(status.active_watch.expires_at) > now ? status.active_watch : null,
+    // A deadline alone cannot prove execution. Explicit execution takes precedence.
+    scheduled_reset: status.scheduled_reset && status.scheduled_reset.id !== status.latest_reset?.id ? status.scheduled_reset : null,
+  };
+}
+
+export async function scheduledFingerprint(reset: ScheduledResetInfo): Promise<string> {
+  return sha256(JSON.stringify({
+    id: reset.id, reset_type: reset.reset_type, announced_at: reset.announced_at,
+    scheduled_for: reset.scheduled_for, text: reset.text, source: reset.source,
+  }));
 }

@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 [![Test](https://github.com/turmony/codex-resets/actions/workflows/test.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/test.yml)
 
-A Cloudflare Worker checks the public Codex Resets API every three hours and sends activation, forecast, forecast-update, and confirmed-reset notifications through one NetEase 126 mailbox. GitHub stores the code; Workers Builds tests and deploys pushes to `main`. D1 preserves notification state across deployments.
+A Cloudflare Worker checks the public Codex Resets API every three hours and sends activation, forecast, forecast-update, scheduled-reset, schedule-update, and confirmed-reset notifications through one NetEase 126 mailbox. GitHub stores the code; Workers Builds tests and deploys pushes to `main`. D1 preserves notification state across deployments.
 
 See the [deployment guide](docs/cloudflare-migration.zh-CN.md) and [HTML call-chain diagram](docs/diagrams/project-call-chain.html).
 
@@ -32,6 +32,8 @@ Connect the repository to Workers Builds with production branch `main`, build co
 
 `30 1-22/3 * * *` runs at Beijing 00:30, 03:30, ..., 21:30. There is no additional ten-minute polling loop. Importing initialized legacy state avoids a second activation email.
 
+An explicit `scheduled_reset` sends a plan announcement; a new time or content revision of the same announcement sends a plan update. Each announcement revision is deduplicated using D1 notification history, independently of confirmed execution, even when both share an announcement ID. API generation timestamps do not trigger notifications. An unknown or elapsed scheduled time remains awaiting execution evidence. Withdrawn or superseded pending plans are cancelled; uncertain submissions are reconciled first. First activation sends and records the activation successfully before submitting a separate plan message; a failed activation defers the plan. After an upgrade, a still-current unnotified plan is sent on the next normal check.
+
 Each notification is persisted before sending. Once SMTP accepts it, one D1 transaction records the result and deduplication markers. A database failure retries database saving only. An uncertain SMTP result is reconciled through read-only IMAP on the next run; failed reconciliation postpones resending. A successful search with no matching message permits a retry after a 30-minute delivery grace. Expired forecasts are never retried.
 
 SMTP acceptance and D1 writes cannot form a single distributed atomic transaction. This recovery policy reduces duplicates; it does not guarantee exactly-once inbox delivery.
@@ -52,6 +54,6 @@ npm run admin -- check
 
 After password setup, the admin helper logs in using `ADMIN_PASSWORD` or the optional ignored `.wrangler/admin-password` file, and logs out after the operation. Before first setup only, it accepts the original `ADMIN_TOKEN` or `.wrangler/admin-token`. Set `MONITOR_URL` for another deployment. If necessary, configure `HTTPS_PROXY` and run `node --use-env-proxy scripts/admin.mjs status`. Passwords and session cookies are never printed.
 
-The original Python implementation remains available for rollback and regression testing. Its Actions workflow is manual-only and requires `run_legacy`. Pause the Worker and synchronize its latest D1 markers back to `state.json` before using the legacy monitor.
+The original Python implementation remains available for rollback and regression testing; it does not support scheduled-reset notifications. Its Actions workflow is manual-only and requires `run_legacy`. Pause the Worker and synchronize its latest D1 markers back to `state.json` before using the legacy monitor.
 
 This project reports third-party global status, cannot read personal Codex quota or usage, and makes no OpenAI service commitment. Cron delivery is not a precise real-time guarantee.
