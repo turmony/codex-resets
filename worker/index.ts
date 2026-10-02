@@ -1,7 +1,7 @@
-import { timingSafeEqual } from 'node:crypto';
 import { runMonitor } from './monitor';
 import { validateMail } from './emailer';
 import { html, css, js } from './page';
+import { Auth, AuthError, authBody, matchesSecret, sessionCookie, clearCookie } from './auth';
 
 const headers = {
   'Cache-Control': 'no-store',
@@ -22,17 +22,8 @@ function nextScheduledAt(now: number): string {
   return new Date((Math.floor((now - offset) / interval) + 1) * interval + offset).toISOString();
 }
 
-async function authorized(request: Request, token: string | undefined): Promise<boolean> {
-  if (!token || !request.headers.get('Authorization')?.startsWith('Bearer ')) return false;
-  const encoder = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', encoder.encode(request.headers.get('Authorization')!.slice(7))),
-    crypto.subtle.digest('SHA-256', encoder.encode(token)),
-  ]);
-  return timingSafeEqual(new Uint8Array(a), new Uint8Array(b));
-}
-function json(value: unknown, status = 200): Response {
-  return Response.json(value, { status, headers });
+function json(value: unknown, status = 200, cookie?: string): Response {
+  return Response.json(value, { status, headers: { ...headers, ...(cookie ? { 'Set-Cookie': cookie } : {}), ...(status === 429 ? { 'Retry-After': '900' } : {}) } });
 }
 export default {
   async fetch(request, env): Promise<Response> {
@@ -46,10 +37,44 @@ export default {
     if (path === '/health' && request.method === 'GET') {
       return json(health(env));
     }
-    if (!['/status', '/check', '/verify-mail'].includes(path)) return json({ error: 'not found' }, 404);
-    if (!await authorized(request, env.ADMIN_TOKEN)) return json({ error: 'unauthorized' }, 401);
-    if (request.method !== 'GET' && request.headers.has('Origin') && request.headers.get('Origin') !== url.origin) return json({ error: 'cross-site operation denied' }, 403);
+    const authPaths = ['/auth/status', '/auth/setup', '/auth/login', '/auth/logout', '/auth/password', '/auth/reset'];
+    if (![...authPaths, '/status', '/check', '/verify-mail'].includes(path)) return json({ error: 'not found' }, 404);
     try {
+      const auth = new Auth(env);
+      if (authPaths.includes(path)) {
+        if (path === '/auth/status' && request.method === 'GET') {
+          return json({ password_set: !!(await auth.row()).password_hash, authenticated: !!await auth.session(request) });
+        }
+        if (path === '/auth/status' || request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+        if (request.headers.get('Origin') !== url.origin) return json({ error: '拒绝跨站操作，请在本项目页面操作。' }, 403);
+        if (path === '/auth/logout') {
+          await auth.logout(request);
+          return json({ message: '已退出登录。' }, 200, clearCookie());
+        }
+        const current = path === '/auth/password' ? await auth.session(request) : null;
+        if (path === '/auth/password' && !current) return json({ error: '登录已失效，请重新登录。' }, 401, clearCookie());
+        await auth.limit(request);
+        const body = await authBody(request);
+        if (path === '/auth/login') return json({ message: '登录成功。' }, 200, sessionCookie(await auth.login(body.password, request)));
+        if (path === '/auth/setup') {
+          await auth.setup(body.newPassword, body.recoveryCode);
+          return json({ message: '密码已设置，请使用新密码登录。' }, 200, clearCookie());
+        }
+        if (path === '/auth/password') {
+          await auth.change(body.currentPassword, body.newPassword, current!);
+          return json({ message: '密码已修改，所有会话已退出，请使用新密码登录。' }, 200, clearCookie());
+        }
+        await auth.reset(body.newPassword, body.recoveryCode);
+        return json({ message: '密码已重置，所有会话已退出，请使用新密码登录。' }, 200, clearCookie());
+      }
+      const current = await auth.session(request);
+      // Transitional CLI access ends as soon as the owner sets a password.
+      const bearer = request.headers.get('Authorization');
+      const bootstrap = !current && bearer?.startsWith('Bearer ') && !(await auth.row()).password_hash && await matchesSecret(bearer.slice(7), env.ADMIN_TOKEN);
+      if (!current && !bootstrap) return json({ error: '登录已失效，请重新登录。' }, 401, clearCookie());
+      if (request.method !== 'GET' && (current ? request.headers.get('Origin') !== url.origin : request.headers.has('Origin') && request.headers.get('Origin') !== url.origin)) {
+        return json({ error: 'cross-site operation denied' }, 403);
+      }
       if (path === '/status' && request.method === 'GET') {
         const db = env.DB.withSession('first-primary');
         const monitor = await db.prepare('SELECT state_json, last_checked_at, last_result FROM monitor WHERE id = 1').first();
@@ -69,7 +94,8 @@ export default {
         return json({ smtp: 'ok', imap: 'ok' });
       }
       return json({ error: 'method not allowed' }, 405);
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthError) return json({ error: error.message }, error.status);
       console.error(JSON.stringify({ event: 'request_failed', path }));
       return json({ error: 'operation failed; check Worker logs and service configuration' }, 503);
     }

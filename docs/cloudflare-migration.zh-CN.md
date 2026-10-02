@@ -66,11 +66,38 @@ SMTP 不能参与 D1 事务。即使 IMAP 未找到，迟到投递、用户删�
 
 访问 Worker 根路径 `/` 打开管理首页，布局参考 `turmony/ikuuu-daily-checkin` 的 `src/page.js`。`worker/page.ts` 提供 HTML、CSS、JavaScript，分别通过 `/`、`/app.css`、`/app.js` 返回；静态页面不包含私密配置或监控标记。
 
-页面打开时仅读取一次公开 `/health`。输入管理令牌后，浏览器通过 Bearer 鉴权读取 `/status`，显示运行摘要、下次计划检查、去重标记、待处理统计和最近 20 条通知；最近通知不返回邮件正文或收件人。令牌不存入 Cookie、localStorage 或 sessionStorage，页面刷新或离开后清除。清除令牌或修改输入会隐藏已加载的私密状态。
+页面打开时读取一次公开 `/health` 和 `/auth/status`。登录后读取 `/status`，显示运行摘要、下次计划检查、去重标记、待处理统计和最近 20 条通知；最近通知不返回邮件正文或收件人。页面不将密码存入 Cookie、localStorage 或 sessionStorage；退出后隐藏私密状态。
 
 “立即检查”调用 `POST /check`，沿用正常通知规则；“验证邮件连接”调用 `POST /verify-mail`，不发送测试邮件。操作完成后刷新一次状态，不进行定时轮询。页面使用同源 CSS/JavaScript 和 CSP，管理修改接口拒绝来自其他 Origin 的请求。下次检查为 Cron 计划时间，不保证精确执行时刻。
 
-管理令牌可以放在 `ADMIN_TOKEN` 环境变量或忽略的 `.wrangler/admin-token` 文件；`MONITOR_URL` 指向其他部署。
+### 密码登录与恢复
+
+这是单管理员应用，不开放公众注册。`worker/auth.ts` 管理密码和会话，`0002_admin_auth.sql` 为 D1 添加 `admin_auth`、`admin_sessions` 和 `auth_attempts`，不修改监控历史。
+
+1. 首次访问首页，使用原管理令牌作为恢复码，设置自己的登录密码。恢复码在本地 `.wrangler/admin-token`，对应 Worker Secret `ADMIN_TOKEN`；不要把它发到聊天或提交到 Git。
+2. 密码须为 12–128 个字符，可包含中文和空格，不会自动去除密码首尾空格。确认两次输入一致后保存，再使用密码登录。
+3. 登录后可展开“修改登录密码”，提供当前密码和新密码。
+4. 忘记密码时，点击“忘记密码”，提供备用恢复码和新密码，无需原密码或邮件验证码。
+5. 修改和重置成功后，所有设备必须重新登录；监控、去重标记和通知任务不受影响。
+
+恢复码为长期备用凭据，请离线备份。若密码和恢复码都遗失，账户所有者可在 Cloudflare 控制台或通过 `wrangler secret put ADMIN_TOKEN` 设置新的随机恢复码，再在首页使用新恢复码重置密码；同时更新本地备份。`ADMIN_TOKEN` 也用作服务端密码 pepper，轮换后必须完成密码重置，原密码验证值不能继续使用。
+
+密码验证使用 HMAC-SHA-256 服务端 pepper、16 字节随机盐和 100,000 次 PBKDF2-SHA-256，D1 只保存验证值。会话为 32 字节随机凭据，D1 只保存 SHA-256 摘要；Cookie 为 `__Host-monitor-session`，包含 `HttpOnly`、`Secure`、`SameSite=Strict`、`Path=/`，固定有效期 12 小时。退出删除对应会话，密码版本变化时 SQLite 触发器在同一事务中清除所有会话。登录写入会话时校验密码版本，防止并发重置后仍建立旧密码会话。
+
+所有鉴权 POST 要求同源 Origin，JSON 请求最多 4 KiB、读取超时 10 秒；每 IP 15 分钟最多 10 次鉴权尝试，全局最多 60 次，设置、登录、修改和重置共用额度。登录密码和恢复码不写日志。未设置密码之前，保留原 Bearer 管理接口供首次切换验证；一旦设置密码，原令牌不再直接访问 `/status`、`/check` 或 `/verify-mail`。
+
+| 接口 | 用途 |
+| --- | --- |
+| `GET /auth/status` | 公开返回密码是否已设置及本会话是否登录 |
+| `POST /auth/setup` | 使用恢复码首次设置密码 |
+| `POST /auth/login` | 验证密码，创建会话 Cookie |
+| `POST /auth/logout` | 删除当前会话，清除 Cookie |
+| `POST /auth/password` | 已登录且提供当前密码后修改密码 |
+| `POST /auth/reset` | 使用备用恢复码重置密码 |
+
+### 命令行管理
+
+设置密码后，脚本从 `ADMIN_PASSWORD` 环境变量或忽略的 `.wrangler/admin-password` 文件读取密码，先登录，执行管理操作，再退出。密码文件可按需创建，内容为完整密码，脚本仅去掉文件末尾一个换行；它不会修改密码内部或其他空格。尚未设置密码时，兼容原 `ADMIN_TOKEN` 环境变量或 `.wrangler/admin-token` 文件。`MONITOR_URL` 指向其他部署。
 
 ```bash
 npm run admin -- status
@@ -80,9 +107,9 @@ npm run admin -- check
 
 `verify-mail` 不发信，验证线上 TCP/TLS、SMTP 登录、IMAP 客户端 ID、登录、文件夹枚举和搜索。首次正常检查状态不变时，不人为生成邮件；实际邮件 DATA 提交和收件仍由正常通知路径执行。协议和故障分支在 Workers 运行时通过模拟连接验证。
 
-需要代理时设置 `HTTPS_PROXY`，使用 `node --use-env-proxy scripts/admin.mjs status`。管理令牌不会打印到终端。
+需要代理时设置 `HTTPS_PROXY`，使用 `node --use-env-proxy scripts/admin.mjs status`。密码、恢复码和会话 Cookie 不会打印到终端。
 
-公开健康接口只返回服务摘要，不提供邮箱或通知内容；其他接口使用管理 Bearer 鉴权。日志记录结果和脱敏错误，不记录 SMTP/IMAP 原始应答、认证字符串或 Secrets。
+公开健康接口只返回服务摘要，不提供邮箱或通知内容；管理接口使用登录会话鉴权。日志记录结果和脱敏错误，不记录 SMTP/IMAP 原始应答、认证字符串或 Secrets。
 
 ## 回滚
 

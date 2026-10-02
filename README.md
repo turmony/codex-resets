@@ -38,9 +38,11 @@ SMTP acceptance and D1 writes cannot form a single distributed atomic transactio
 
 ## Operations
 
-The [dashboard](https://codex-resets-monitor.turmony.workers.dev/) follows the light card layout in `ikuuu-daily-checkin`. Enter the admin token to view the last check, next scheduled check, deduplication markers, pending notifications and the latest 20 notification records, or run a manual check and verify mail connections. The token is kept only for the current page visit; there is no automatic polling.
+The [dashboard](https://codex-resets-monitor.turmony.workers.dev/) follows the light card layout in `ikuuu-daily-checkin`. Sign in with your own password to view the last check, next scheduled check, deduplication markers, pending notifications and the latest 20 notification records, or run a manual check and verify mail connections. There is no automatic polling.
 
-Public `GET /health` returns a small health summary. `GET /status`, `POST /check`, and `POST /verify-mail` require an admin bearer token. Mail verification checks SMTP/IMAP TLS and authentication without sending mail.
+On first use, enter the original admin token as the recovery code and set a 12–128 character password. You can change the password while signed in, or use “Forgot password” and the recovery code to reset it. Both actions revoke every session atomically and preserve monitoring history. Back up the recovery code from the ignored `.wrangler/admin-token` file offline.
+
+D1 stores a salted, secret-peppered PBKDF2 verifier rather than plaintext passwords. Sessions use a secure HttpOnly SameSite=Strict cookie with a 12-hour expiry. Authentication requests are rate limited. Public `GET /health` and `GET /auth/status` return small summaries; management operations require a session. Mail verification checks SMTP/IMAP TLS and authentication without sending mail.
 
 ```bash
 npm run admin -- status
@@ -48,7 +50,7 @@ npm run admin -- verify-mail
 npm run admin -- check
 ```
 
-The admin helper reads `ADMIN_TOKEN` from the environment or the ignored `.wrangler/admin-token` file; set `MONITOR_URL` for another deployment. If necessary, configure `HTTPS_PROXY` and run `node --use-env-proxy scripts/admin.mjs status`.
+After password setup, the admin helper logs in using `ADMIN_PASSWORD` or the optional ignored `.wrangler/admin-password` file, and logs out after the operation. Before first setup only, it accepts the original `ADMIN_TOKEN` or `.wrangler/admin-token`. Set `MONITOR_URL` for another deployment. If necessary, configure `HTTPS_PROXY` and run `node --use-env-proxy scripts/admin.mjs status`. Passwords and session cookies are never printed.
 
 The original Python implementation remains available for rollback and regression testing. Its Actions workflow is manual-only and requires `run_legacy`. Pause the Worker and synchronize its latest D1 markers back to `state.json` before using the legacy monitor.
 

@@ -33,11 +33,13 @@ npm run build
 
 ## 管理
 
-打开 [监控首页](https://codex-resets-monitor.turmony.workers.dev/) 查看服务摘要。页面参考 `ikuuu-daily-checkin` 的浅色卡片布局；输入管理令牌后可查看最近检查、下次计划检查、去重标记、待处理通知和最近 20 条通知，并执行立即检查或邮件连接验证。令牌仅用于当前页面访问，不存入浏览器；页面没有定时轮询。
+打开 [监控首页](https://codex-resets-monitor.turmony.workers.dev/) 查看服务摘要。页面参考 `ikuuu-daily-checkin` 的浅色卡片布局；使用自设密码登录后可查看最近检查、下次计划检查、去重标记、待处理通知和最近 20 条通知，并执行立即检查或邮件连接验证。页面没有定时轮询。
 
-`GET /health` 仅提供服务健康摘要。`GET /status`、`POST /check` 和 `POST /verify-mail` 需要 `Authorization: Bearer <ADMIN_TOKEN>`；验证接口检查 SMTP/IMAP 连接和认证，不发送测试邮件。
+首次访问使用原管理令牌作为**备用恢复码**，设置 12–128 个字符的登录密码。登录后可修改密码；忘记密码时点击“忘记密码”，用恢复码设置新密码。修改或重置会立即使所有会话失效，不影响监控和通知记录。恢复码保存在忽略的 `.wrangler/admin-token` 文件中，请离线备份。
 
-本次迁移生成的管理令牌保存在忽略的 `.wrangler/admin-token` 文件中，也可通过 `ADMIN_TOKEN` 环境变量提供。命令不会打印令牌：
+密码以随机盐、服务端 Secret 和 PBKDF2 验证值保存，数据库不存明文密码。浏览器使用 `HttpOnly; Secure; SameSite=Strict` 会话 Cookie，最长有效 12 小时；登录、设置和重置请求有限流。`GET /health` 和 `GET /auth/status` 为公开摘要，其他管理操作需要登录。`POST /verify-mail` 不发送测试邮件。
+
+设置密码后，命令行管理使用 `ADMIN_PASSWORD` 环境变量或私密的 `.wrangler/admin-password` 文件登录；该文件位于忽略目录，按需创建且不要提交。尚未设置密码时，脚本兼容原 `ADMIN_TOKEN` / `.wrangler/admin-token`；设置密码后原令牌只能用于恢复。命令不会打印密码或会话：
 
 ```bash
 npm run admin -- status

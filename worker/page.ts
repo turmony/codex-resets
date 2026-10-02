@@ -20,14 +20,45 @@ export const html = `<!doctype html>
     <p class="hint">检查时间：00:30、03:30、06:30、09:30、12:30、15:30、18:30、21:30。</p>
   </section>
   <section aria-labelledby="accessTitle">
-    <h2 id="accessTitle">管理访问</h2>
-    <form id="access" autocomplete="off">
-      <label for="token">管理令牌</label>
-      <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="输入部署时生成的管理令牌" required>
-      <button id="load" type="submit">查看状态</button>
-      <button id="clear" type="button" class="secondary">清除令牌</button>
+    <h2 id="accessTitle">管理登录</h2>
+    <p id="accessHint">正在读取登录设置…</p>
+    <form id="loginForm" hidden>
+      <label for="password">登录密码</label>
+      <input id="password" type="password" autocomplete="current-password" maxlength="128" placeholder="输入你设置的密码" required>
+      <button id="login" type="submit">登录</button>
     </form>
-    <p class="hint">令牌仅用于本次页面访问，不保存到浏览器。刷新或关闭页面后需重新输入。</p>
+    <form id="setupForm" hidden autocomplete="off">
+      <p>首次使用，请验证恢复码并设置自己的登录密码。</p>
+      <label for="setupCode">备用恢复码</label>
+      <input id="setupCode" type="password" autocomplete="off" maxlength="512" placeholder="输入原管理令牌作为恢复码" required>
+      <label for="setupPassword">登录密码</label>
+      <input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+      <label for="setupConfirm">确认密码</label>
+      <input id="setupConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <button id="setup" type="submit">设置密码</button>
+      <p class="hint">恢复码请离线保存，忘记密码时需要它；日常登录只需密码。</p>
+    </form>
+    <button id="forgot" type="button" class="secondary" hidden>忘记密码</button>
+    <div id="signedIn" hidden>
+      <p>已登录。登录会话最长有效 12 小时。</p>
+      <button id="load" type="button">刷新状态</button>
+      <button id="logout" type="button" class="secondary">退出登录</button>
+    </div>
+  </section>
+  <section id="resetSection" aria-labelledby="resetTitle" hidden>
+    <h2 id="resetTitle">重置密码</h2>
+    <p>使用备用恢复码验证身份，重新设置登录密码。</p>
+    <form id="resetForm" autocomplete="off">
+      <label for="resetCode">备用恢复码</label>
+      <input id="resetCode" type="password" autocomplete="off" maxlength="512" required>
+      <label for="resetPassword">新密码</label>
+      <input id="resetPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+      <label for="resetConfirm">确认新密码</label>
+      <input id="resetConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <button id="reset" type="submit">重置密码</button>
+      <button id="back" type="button" class="secondary">返回登录</button>
+    </form>
+    <p class="hint">重置成功后，所有已登录设备会立即退出。重置密码不会修改通知记录，也不会暂停监控。</p>
   </section>
   <p id="message" role="status" aria-live="polite"></p>
   <section id="overview" aria-labelledby="overviewTitle" hidden>
@@ -48,6 +79,20 @@ export const html = `<!doctype html>
     <div id="history"></div>
     <p class="hint">最多显示最近 20 条通知任务；没有变化的例行检查不会生成通知记录。</p>
   </section>
+  <section id="passwordSection" hidden>
+    <details><summary>修改登录密码</summary>
+      <form id="changeForm">
+        <label for="currentPassword">当前密码</label>
+        <input id="currentPassword" type="password" autocomplete="current-password" maxlength="128" required>
+        <label for="newPassword">新密码</label>
+        <input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+        <label for="newConfirm">确认新密码</label>
+        <input id="newConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        <button id="change" type="submit">修改密码</button>
+      </form>
+      <p class="hint">修改后所有会话会立即退出，请使用新密码重新登录。</p>
+    </details>
+  </section>
   <footer>时间均为北京时间。邮件“已提交”表示发送结果已记录，不代表最终送达。页面只在打开或操作时读取状态。</footer>
 </main><script src="/app.js" defer></script></body>
 </html>`;
@@ -60,7 +105,7 @@ p,footer{line-height:1.65;color:#536277}section{background:white;border:1px soli
 label{display:block;font-weight:600;margin:12px 0 8px}input{width:100%;min-width:0;padding:12px;border:1px solid #b9c6d9;border-radius:6px;font:inherit}
 button{padding:11px 16px;background:#265bcb;color:white;border:1px solid #265bcb;border-radius:6px;cursor:pointer;font:inherit;margin:12px 8px 0 0}
 button.secondary{background:#fff;color:#265bcb}button:disabled{opacity:.5;cursor:wait}
-button:focus-visible,input:focus-visible{outline:3px solid #94b8ff;outline-offset:3px}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #94b8ff;outline-offset:3px}summary{font-weight:600;cursor:pointer}
 .hint,footer{font-size:13px}dl{display:grid;grid-template-columns:145px minmax(0,1fr);gap:14px;margin:0}
 dt{color:#536277}dd{margin:0;overflow-wrap:anywhere}.record{padding:12px 0;border-bottom:1px solid #e7edf5}
 .record:last-child{border-bottom:0}.record p{margin:4px 0}.record strong{font-size:15px}.record .hint{margin-bottom:0}
@@ -75,6 +120,7 @@ const kinds = { activation: '启用通知', forecast: '预测通知', reset: '�
 const statuses = { pending: '等待发送', sending: '正在提交', uncertain: '等待核对发送结果', accepted: '已接受，等待记录', sent: '已提交', cancelled: '已取消' };
 const results = { ok: '检查成功', partial: '部分通知待处理', failed: '检查失败', busy: '已有检查正在执行', disabled: '监控已暂停', unconfigured: '邮件配置不完整' };
 const errors = { 'smtp outcome uncertain': '发送结果不确定，等待邮件核对', 'smtp submission failed': '邮件提交失败，等待重试', 'event expired or superseded': '事件已过期或已被更新', 'event expired': '事件已过期', 'event superseded': '事件已被更新' };
+let authenticated = false, passwordSet = false, resetMode = false, accessVersion = 0;
 function time(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -85,7 +131,7 @@ function message(text, error = false) {
   get('message').className = error ? 'error' : '';
 }
 function hidePrivate() {
-  for (const id of ['overview', 'pendingSection', 'historySection']) get(id).hidden = true;
+  for (const id of ['overview', 'pendingSection', 'historySection', 'passwordSection']) get(id).hidden = true;
   for (const id of ['facts', 'pending', 'history']) get(id).replaceChildren();
 }
 function renderHealth(health) {
@@ -139,51 +185,120 @@ function render(data) {
     }
     get('history').append(item);
   }
-  for (const id of ['overview', 'pendingSection', 'historySection']) get(id).hidden = false;
+  for (const id of ['overview', 'pendingSection', 'historySection', 'passwordSection']) get(id).hidden = false;
 }
-async function api(path, token, method = 'GET') {
+function clearSensitive() { document.querySelectorAll('input[type="password"]').forEach(input => input.value = ''); }
+function renderAccess() {
+  get('accessTitle').textContent = authenticated ? '管理访问' : passwordSet ? '管理登录' : '首次设置密码';
+  get('accessHint').textContent = authenticated ? '使用完毕后请退出登录。' : passwordSet ? '使用你设置的密码登录。' : '当前尚未设置登录密码。';
+  get('signedIn').hidden = !authenticated;
+  get('loginForm').hidden = authenticated || !passwordSet || resetMode;
+  get('setupForm').hidden = authenticated || passwordSet;
+  get('forgot').hidden = authenticated || !passwordSet || resetMode;
+  get('resetSection').hidden = authenticated || !passwordSet || !resetMode;
+}
+function signedOut() {
+  authenticated = false; resetMode = false; accessVersion++;
+  clearSensitive(); hidePrivate(); renderAccess();
+}
+async function api(path, method = 'GET', body) {
   const response = await fetch(path, {
-    method, headers: { Authorization: 'Bearer ' + token }, cache: 'no-store',
+    method, credentials: 'same-origin', cache: 'no-store',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(200000)
   });
+  const result = await response.json();
   if (!response.ok) {
-    if (response.status === 401) { hidePrivate(); throw Error('管理令牌无效或未配置'); }
-    throw Error(response.status === 503 ? '服务暂时异常，请稍后查看状态或 Worker 日志' : '请求失败（' + response.status + '）');
+    if (response.status === 401 && !['/auth/login', '/auth/setup', '/auth/reset'].includes(path)) signedOut();
+    throw Error(response.status === 503 ? '服务暂时异常，请稍后查看状态或 Worker 日志' : result.error || '请求失败（' + response.status + '）');
   }
-  return response.json();
+  return result;
+}
+async function busy(action, text) {
+  document.querySelectorAll('button,input').forEach(control => control.disabled = true);
+  message(text);
+  try {
+    await action();
+  } catch (error) {
+    message(error.name === 'TimeoutError' || error.name === 'TypeError' ? '连接中断或超时，请先刷新页面确认执行结果。' : error.message, true);
+  } finally {
+    document.querySelectorAll('button,input').forEach(control => control.disabled = false);
+  }
 }
 async function act(path) {
-  const token = get('token').value.trim();
-  if (!token) { message('请输入管理令牌', true); get('token').focus(); return; }
-  document.querySelectorAll('button').forEach(button => button.disabled = true);
-  get('token').disabled = true;
-  message(path === '/status' ? '正在读取状态…' : path === '/check' ? '正在检查，可能需要几分钟…' : '正在验证邮件连接…');
-  try {
-    const data = await api(path, token, path === '/status' ? 'GET' : 'POST');
-    if (get('token').value.trim() !== token) return;
+  if (!authenticated) { message('请先登录。', true); return; }
+  const version = accessVersion;
+  await busy(async () => {
+    const data = await api(path, path === '/status' ? 'GET' : 'POST');
+    if (!authenticated || version !== accessVersion) return;
     if (path === '/status') { render(data); message('状态已更新'); return; }
     const summary = path === '/verify-mail' ? 'SMTP / IMAP 连接验证通过，未发送测试邮件。' :
       (results[data.result] || data.result) + '；已提交 ' + data.sent + ' 封，暂缓 ' + data.deferred + ' 项，失败 ' + data.failed + ' 项。';
     try {
-      const status = await api('/status', token);
-      if (get('token').value.trim() !== token) return;
+      const status = await api('/status');
+      if (!authenticated || version !== accessVersion) return;
       render(status);
     }
     catch { message(summary + ' 状态刷新失败，请重新查看状态。', true); return; }
     message(summary, path === '/check' && data.result !== 'ok');
-  } catch (error) {
-    message(error.name === 'TimeoutError' || error.name === 'TypeError' ? '连接中断或超时，请先查看状态确认执行结果。' : error.message, true);
-  } finally {
-    document.querySelectorAll('button').forEach(button => button.disabled = false);
-    get('token').disabled = false;
-  }
+  }, path === '/status' ? '正在读取状态…' : path === '/check' ? '正在检查，可能需要几分钟…' : '正在验证邮件连接…');
 }
-get('access').addEventListener('submit', event => { event.preventDefault(); void act('/status'); });
+function newPassword(first, confirm) {
+  const value = get(first).value;
+  if (value.length < 12 || value.length > 128) throw Error('新密码须为 12–128 个字符。');
+  if (value !== get(confirm).value) throw Error('两次输入的新密码不一致。');
+  return value;
+}
+get('loginForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const value = get('password').value;
+  void busy(async () => {
+    try {
+      await api('/auth/login', 'POST', { password: value });
+      authenticated = true; resetMode = false; accessVersion++; renderAccess();
+      try { render(await api('/status')); message('登录成功，状态已更新。'); }
+      catch (error) { message('登录请求已完成，状态读取失败：' + error.message, true); }
+    } finally { clearSensitive(); }
+  }, '正在登录…');
+});
+for (const [form, path, first, confirm, code] of [
+  ['setupForm', '/auth/setup', 'setupPassword', 'setupConfirm', 'setupCode'],
+  ['resetForm', '/auth/reset', 'resetPassword', 'resetConfirm', 'resetCode'],
+  ['changeForm', '/auth/password', 'newPassword', 'newConfirm', null]
+]) {
+  get(form).addEventListener('submit', event => {
+    event.preventDefault();
+    let value;
+    try { value = newPassword(first, confirm); } catch (error) { message(error.message, true); return; }
+    const body = { newPassword: value };
+    if (code) body.recoveryCode = get(code).value.trim();
+    else body.currentPassword = get('currentPassword').value;
+    void busy(async () => {
+      try {
+        const result = await api(path, 'POST', body);
+        passwordSet = true; signedOut(); message(result.message);
+      } finally { clearSensitive(); }
+    }, '正在保存密码…');
+  });
+}
+get('load').addEventListener('click', () => { void act('/status'); });
 get('run').addEventListener('click', () => { void act('/check'); });
 get('verify').addEventListener('click', () => { void act('/verify-mail'); });
-get('clear').addEventListener('click', () => { get('token').value = ''; hidePrivate(); message('令牌已清除'); });
-get('token').addEventListener('input', () => { hidePrivate(); message(''); });
-window.addEventListener('pagehide', () => { get('token').value = ''; hidePrivate(); });
+get('logout').addEventListener('click', () => {
+  void busy(async () => { const result = await api('/auth/logout', 'POST'); signedOut(); message(result.message); }, '正在退出…');
+});
+get('forgot').addEventListener('click', () => { resetMode = true; clearSensitive(); renderAccess(); message(''); });
+get('back').addEventListener('click', () => { resetMode = false; clearSensitive(); renderAccess(); message(''); });
+window.addEventListener('pagehide', () => { accessVersion++; clearSensitive(); hidePrivate(); });
+window.addEventListener('pageshow', event => { if (event.persisted) void loadAccess(); });
+async function loadAccess() {
+  try {
+    const status = await api('/auth/status');
+    passwordSet = status.password_set; authenticated = status.authenticated; resetMode = false; renderAccess();
+    if (authenticated) render(await api('/status'));
+  } catch (error) { message('无法读取登录状态：' + error.message, true); }
+}
 async function loadHealth() {
   try {
     const response = await fetch('/health', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
@@ -192,4 +307,5 @@ async function loadHealth() {
   } catch { get('service').textContent = '暂时无法读取服务状态，请稍后刷新页面。'; get('service').className = 'error'; }
 }
 void loadHealth();
+void loadAccess();
 `;
