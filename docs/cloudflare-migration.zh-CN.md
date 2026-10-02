@@ -1,0 +1,88 @@
+# Cloudflare 部署与迁移说明
+
+实现日期：2026-10-02。项目使用 TypeScript Worker、Cron、D1 和 Workers Builds；现有 Python 保留为回滚参考。调用关系见 [简单 HTML 流程图](diagrams/project-call-chain.html)。项目没有前端，当前无需单独的 Pages 项目。
+
+## 当前部署
+
+| 项目 | 值 |
+| --- | --- |
+| Worker | `codex-resets-monitor` |
+| 地址 | `https://codex-resets-monitor.turmony.workers.dev` |
+| D1 | `codex-resets-monitor` |
+| 数据库 ID | `e3f0f69d-c582-4929-b02c-e83246faaa6a` |
+| 生产仓库 / 分支 | `turmony/codex-resets` / `main` |
+| Cron | `30 1-22/3 * * *`，UTC；北京时间每 3 小时半点 |
+| 发信 / 核对 | `smtp.126.com:465` / `imap.126.com:993`，隐式 TLS |
+| 状态 | D1 `monitor` 和 `notifications`，不再提交运行时状态到 GitHub |
+
+## 首次部署到自己的账户
+
+1. 安装 Node.js 24，运行 `npm ci`、`npx wrangler login`。
+2. 执行 `npx wrangler d1 create codex-resets-monitor`，将新账户 ID 和数据库 ID 填入 `wrangler.jsonc`。
+3. 先将 `MONITOR_ENABLED` 设置为字符串 `false`。执行 `npx wrangler d1 migrations apply codex-resets-monitor --remote`。
+4. 使用 `npx wrangler secret put MAIL_EMAIL`、`npx wrangler secret put MAIL_SMTP_AUTH_CODE`、`npx wrangler secret put ADMIN_TOKEN`，按交互提示输入。邮箱开启 IMAP/SMTP，授权码不是登录密码。
+5. `npm run deploy`。如果旧监控仍在运行，先完成连接验证，再停用旧工作流并确认没有未完成运行。
+6. 导入最终历史状态：`npm run import-state -- --remote state.json`。此脚本仅在未初始化、无通知记录且无有效租约时写入；不会覆盖已运行的 D1 状态。确认管理接口中的状态一致。
+7. 将 `MONITOR_ENABLED` 改为 `true` 并部署，执行一次鉴权的 `POST /check`，检查状态和 Worker 日志。
+
+初次创建 Worker 时，Wrangler 声明的必需 Secrets 会阻止不完整生产部署；可先用 `wrangler secret put` 建立 Worker 和 Secrets，再发布代码。本次迁移先发布了暂停监控的初始化版本，之后设置运行时 Secrets、导入状态并正式启用。
+
+## GitHub 自动更新
+
+Cloudflare 控制台选择 Worker → Settings → Builds，连接 GitHub 仓库，设置：
+
+- 生产分支：`main`；项目目录：仓库根目录。
+- 构建命令：`npm run types && npm run typecheck && npm test`。
+- 部署命令：`npm run deploy`，先应用新增 D1 迁移，再发布代码。
+- Node.js：24；构建变量可设置 `NODE_VERSION=24`。
+- 构建令牌：目标账户上的 Workers Scripts Edit、D1 Edit，以及 Wrangler 所需的账户读取权限。
+- 构建触发范围：Worker、SQL 迁移、脚本、Worker 测试、依赖和配置文件。文档和历史 `state.json` 更新无需发布 Worker。
+
+邮箱配置只保存在 Worker 运行时 Secrets。自动部署保留 Secrets 和 D1 数据；不把邮箱授权码提供给构建或 PR 测试。第一次自动构建必须检查日志，确认仓库授权、测试、D1 权限和实际发布均成功，不能仅凭连接记录判断部署链已可用。
+
+GitHub Actions `test.yml` 只做 Python 回归和 Worker 检查。`monitor.yml` 不再包含 schedule，保留手动回滚入口；线上监控不依赖 GitHub Actions runner。
+
+## 运行与异常恢复
+
+`worker/index.ts` 接收 Cron 或管理请求，`monitor.ts` 协调通知，`api.ts` / `domain.ts` 获取校验公开状态，`emailer.ts` 渲染中文邮件，`smtp.ts` / `imap.ts` 处理邮件协议，`store.ts` 调用 D1。
+
+D1 租约有效期 5 分钟，单轮运行预算 3 分钟。获取租约失败跳过；写库和发送 DATA 前核对租约，旧执行不能覆盖新执行的状态。API 最多尝试 3 次，每次 15 秒，429 退避最多 30 秒。SMTP 和每次 IMAP 核对均有 25 秒总截止时间，响应长度有上限。
+
+流程为：读取状态和待发记录 → 获取合法快照 → 先恢复不确定事件 → 判断当前需要的通知 → 保存待发任务 → SMTP 提交 → 保存结果。无变化不发信；过期预测只清理标记。初始化状态导入后不再发送启用邮件；预测指纹与原 Python 算法兼容。
+
+通知状态为 `pending`、`sending`、`uncertain`、`accepted`、`sent`、`cancelled`。SMTP 最终返回 250 后表示服务器接受，随后退出会话失败仍视为已接受；写库只重试写库。`notifications` 转为 `sent` 时，SQLite 触发器在同一事务中更新公开去重标记，二者同时成功或回滚。
+
+崩溃留下 `accepted` 时直接补写状态；留下 `sending` / `uncertain` 时，先按稳定事件 ID 搜索 IMAP 中所有可选文件夹，包括垃圾邮件。找到则补写；查询失败或无法完整枚举文件夹则暂缓。未找到且经过 30 分钟缓冲后，才允许重试仍有效的通知。过期或被新快照取代的预测取消。
+
+SMTP 不能参与 D1 事务。即使 IMAP 未找到，迟到投递、用户删信和服务端索引延迟仍可能导致重复；该策略不承诺严格恰好一次。API 获取失败时本轮停止通知与恢复，等待下一次检查。
+
+## 管理与验证
+
+管理令牌可以放在 `ADMIN_TOKEN` 环境变量或忽略的 `.wrangler/admin-token` 文件；`MONITOR_URL` 指向其他部署。
+
+```bash
+npm run admin -- status
+npm run admin -- verify-mail
+npm run admin -- check
+```
+
+`verify-mail` 不发信，验证线上 TCP/TLS、SMTP 登录、IMAP 客户端 ID、登录、文件夹枚举和搜索。首次正常检查状态不变时，不人为生成邮件；实际邮件 DATA 提交和收件仍由正常通知路径执行。协议和故障分支在 Workers 运行时通过模拟连接验证。
+
+需要代理时设置 `HTTPS_PROXY`，使用 `node --use-env-proxy scripts/admin.mjs status`。管理令牌不会打印到终端。
+
+公开健康接口只返回服务摘要，不提供邮箱或通知内容；其他接口使用管理 Bearer 鉴权。日志记录结果和脱敏错误，不记录 SMTP/IMAP 原始应答、认证字符串或 Secrets。
+
+## 回滚
+
+先暂停 Worker：将 `MONITOR_ENABLED` 改为 `false` 并部署，确认暂停后导出 D1 `monitor.state_json` 的最新公开标记，更新仓库 `state.json`。然后重新启用旧 workflow，并在手动运行时勾选 `run_legacy`。恢复长期 GitHub 定时监控时需重新添加 schedule；两套监控不能同时运行。
+
+Worker 代码回滚不会回滚 D1 数据。保留数据库，不以删除数据库或清空通知历史作为回滚方式。
+
+## 官方资料
+
+- [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
+- [TCP sockets](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/)
+- [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)
+- [Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+- [D1 Sessions 与事务](https://developers.cloudflare.com/d1/worker-api/d1-database/)
+- [Workers 运行时测试](https://developers.cloudflare.com/workers/testing/vitest-integration/)

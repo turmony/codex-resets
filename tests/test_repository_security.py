@@ -52,15 +52,26 @@ class RepositorySecurityTests(unittest.TestCase):
         self.assertIn("contents: read", text)
         self.assertNotIn("secrets.", text)
 
-    def test_monitor_schedule_permissions_and_pins(self):
+    def test_legacy_monitor_is_manual_only_with_permissions_and_pins(self):
         text = Path(".github/workflows/monitor.yml").read_text(encoding="utf-8")
-        self.assertIn('cron: "30 1-22/3 * * *"', text)
-        self.assertIn("workflow_dispatch: {}", text)
+        self.assertNotIn("schedule:", text)
+        self.assertIn("workflow_dispatch:", text)
+        self.assertIn("if: inputs.run_legacy", text)
         self.assertIn("contents: write", text)
         self.assertNotIn("pull_request:", text)
         uses = re.findall(r"uses:\s+[^@]+@([^\s#]+)", text)
         self.assertTrue(uses)
         self.assertTrue(all(re.fullmatch(r"[0-9a-f]{40}", value) for value in uses))
+
+    def test_cloudflare_schedule_and_private_files(self):
+        config = json.loads(Path("wrangler.jsonc").read_text(encoding="utf-8"))
+        self.assertEqual(config["triggers"]["crons"], ["30 1-22/3 * * *"])
+        self.assertEqual(set(config["secrets"]["required"]), {"MAIL_EMAIL", "MAIL_SMTP_AUTH_CODE", "ADMIN_TOKEN"})
+        self.assertNotIn("MAIL_EMAIL", config["vars"])
+        self.assertNotIn("MAIL_SMTP_AUTH_CODE", config["vars"])
+        ignored = Path(".gitignore").read_text(encoding="utf-8")
+        for path in (".wrangler/", ".dev.vars", ".env", "node_modules/"):
+            self.assertIn(path, ignored)
 
     def test_monitor_checkout_uses_latest_default_branch_tip(self):
         text = Path(".github/workflows/monitor.yml").read_text(encoding="utf-8")

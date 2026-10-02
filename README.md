@@ -3,51 +3,51 @@
 English | [简体中文](README.zh-CN.md)
 
 [![Test](https://github.com/turmony/codex-resets/actions/workflows/test.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/test.yml)
-[![Monitor](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml)
 
-A lightweight GitHub Actions monitor that checks the public Codex Resets status API every three hours and sends reset forecasts and announcements to a NetEase 126 mailbox.
+A Cloudflare Worker checks the public Codex Resets API every three hours and sends activation, forecast, forecast-update, and confirmed-reset notifications through one NetEase 126 mailbox. GitHub stores the code; Workers Builds tests and deploys pushes to `main`. D1 preserves notification state across deployments.
 
-## Features
-
-- Runs every three hours at Beijing minute 30 with no dedicated server.
-- Sends activation, forecast, forecast-update, and confirmed-reset emails.
-- Uses one 126 mailbox as both sender and recipient.
-- Stores only public notification markers in `state.json` to prevent duplicates.
-
-## Quick Start
-
-1. Fork this repository or push it to a public GitHub repository.
-2. Enable **IMAP/SMTP** in NetEase 126 Mail and generate an SMTP authorization code. POP3/SMTP is not needed.
-3. Add these repository Actions secrets under **Settings → Secrets and variables → Actions**:
-
-   | Secret | Value |
-   | --- | --- |
-   | `MAIL_EMAIL` | Your 126 email address |
-   | `MAIL_SMTP_AUTH_CODE` | Your 126 SMTP authorization code, not your account password |
-
-4. Under **Settings → Actions → General → Workflow permissions**, select **Read and write permissions**.
-5. Open **Actions → Monitor Codex Resets** and run the workflow once. A successful first run sends an activation email and creates `state.json`.
-
-When migrating an existing monitor from QQ, replace the old Actions secrets with `MAIL_EMAIL` and `MAIL_SMTP_AUTH_CODE`. Existing notification state is retained, so a manual run sends no email if the public status has not changed. To request one activation email in the new mailbox, reset `state.json` to its initial values before that run.
-
-## Notifications
-
-The monitor is scheduled with `30 1-22/3 * * *` in UTC, corresponding to 00:30, 03:30, 06:30, ..., 21:30 Beijing time. GitHub Actions scheduling is best effort and may be delayed or skipped.
-
-Emails are sent only when monitoring is activated or when a public forecast or confirmed reset changes. The source may provide a forecast window without an exact reset time or timezone; the monitor does not invent one.
-
-## Security and Limitations
-
-- Never commit or share a 126 email address, authorization code, password, or token.
-- Secrets are available only to the production workflow; pull-request tests do not receive them.
-- `state.json` contains public API-derived markers only.
-- This project reports third-party global status information. It cannot read personal Codex quota, usage, or account state, and forecasts are not an OpenAI service commitment.
-- GitHub may disable scheduled workflows after 60 days without repository activity. Re-enable the workflow and run it manually if checks stop.
+See the [deployment guide](docs/cloudflare-migration.zh-CN.md) and [HTML call-chain diagram](docs/diagrams/project-call-chain.html).
 
 ## Development
 
-Requires Python 3.12. Run the test suite with:
+Requires Node.js 24. Install and validate with:
 
 ```bash
-uv run --python 3.12 python -m unittest discover -s tests -v
+npm ci
+npm run types
+npm run typecheck
+npm test
+npm run build
 ```
+
+Use `npm run db:local` and `npm run dev` for local development. Store local secrets in the ignored `.dev.vars` file. Runtime tests use isolated D1 storage and mocked mail transports, never production resources.
+
+## Deployment
+
+Configure your Cloudflare account and D1 database in `wrangler.jsonc`, apply SQL migrations, and add `MAIL_EMAIL`, `MAIL_SMTP_AUTH_CODE`, and `ADMIN_TOKEN` as Worker **Secrets**. Enable IMAP/SMTP for your 126 mailbox and use its authorization code, not its login password. Run `npm run deploy` after initial provisioning. Never store mail credentials in source, plaintext variables, or build variables.
+
+Connect the repository to Workers Builds with production branch `main`, build command `npm run types && npm run typecheck && npm test`, and deploy command `npm run deploy`. The build token needs Workers Scripts Edit and D1 Edit on the target account. Runtime secrets remain on the Worker.
+
+## Scheduling and recovery
+
+`30 1-22/3 * * *` runs at Beijing 00:30, 03:30, ..., 21:30. There is no additional ten-minute polling loop. Importing initialized legacy state avoids a second activation email.
+
+Each notification is persisted before sending. Once SMTP accepts it, one D1 transaction records the result and deduplication markers. A database failure retries database saving only. An uncertain SMTP result is reconciled through read-only IMAP on the next run; failed reconciliation postpones resending. A successful search with no matching message permits a retry after a 30-minute delivery grace. Expired forecasts are never retried.
+
+SMTP acceptance and D1 writes cannot form a single distributed atomic transaction. This recovery policy reduces duplicates; it does not guarantee exactly-once inbox delivery.
+
+## Operations
+
+Public `GET /health` returns a small health summary. `GET /status`, `POST /check`, and `POST /verify-mail` require an admin bearer token. Mail verification checks SMTP/IMAP TLS and authentication without sending mail.
+
+```bash
+npm run admin -- status
+npm run admin -- verify-mail
+npm run admin -- check
+```
+
+The admin helper reads `ADMIN_TOKEN` from the environment or the ignored `.wrangler/admin-token` file; set `MONITOR_URL` for another deployment. If necessary, configure `HTTPS_PROXY` and run `node --use-env-proxy scripts/admin.mjs status`.
+
+The original Python implementation remains available for rollback and regression testing. Its Actions workflow is manual-only and requires `run_legacy`. Pause the Worker and synchronize its latest D1 markers back to `state.json` before using the legacy monitor.
+
+This project reports third-party global status, cannot read personal Codex quota or usage, and makes no OpenAI service commitment. Cron delivery is not a precise real-time guarantee.

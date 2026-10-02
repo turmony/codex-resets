@@ -17,3 +17,22 @@ jobs:
           python-version: "3.12"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+      # Pull-request tests use local bindings only.
+      - name: Install Worker dependencies
+        run: npm ci
+      - name: Generate Worker types
+        run: npm run types
+      - name: Type-check Worker
+        run: npm run typecheck
+      - name: Test in Workers runtime
+        run: npm test
+      - name: Verify Worker bundle
+        run: npm run build

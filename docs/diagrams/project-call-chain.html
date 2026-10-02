@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex Resets · 项目调用链</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --paper: #f5f5f5; --ink: #2d3142; --muted: #4f5d75; --accent: #eb6c36;
+      --sans: 'Geist', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+      --serif: 'Instrument Serif', 'Noto Serif SC', 'SimSun', serif;
+      --mono: 'Geist Mono', ui-monospace, monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--paper); font-family: var(--sans); line-height: 1.7; }
+    main { max-width: 1408px; margin: 0 auto; padding: 40px 32px; min-width: 0; }
+    .eyebrow { color: var(--muted); font: 11px var(--mono); letter-spacing: .14em; }
+    h1 { font: 400 36px/1.4 var(--serif); margin: 12px 0; }
+    h2 { font-size: 20px; margin: 0 0 8px; }
+    p { font-size: 14px; color: var(--muted); margin: 8px 0; }
+    nav { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0 0; }
+    a { color: #2e5aa8; text-decoration: none; font-size: 14px; }
+    section { margin-top: 40px; padding-top: 24px; border-top: 1px solid #bfc0c0; scroll-margin-top: 24px; }
+    .diagram-container { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 1280px; }
+    .name { font: 600 16px var(--sans); fill: var(--ink); }
+    .sub { font: 400 11px var(--mono); fill: var(--muted); }
+    .cn { font: 400 12px var(--sans); fill: var(--muted); }
+    .label { font: 500 12px var(--sans); fill: var(--muted); }
+    .node { fill: #fff; stroke: var(--ink); stroke-width: 1; }
+    .focal { fill: rgba(235,108,54,.08); stroke: var(--accent); }
+    .store { fill: rgba(45,49,66,.05); stroke: var(--muted); }
+    .optional { fill: rgba(45,49,66,.02); stroke: var(--muted); stroke-dasharray: 5,4; }
+    .wire { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+    .api-wire { stroke: #2e5aa8; }
+    .passive { stroke-dasharray: 5,4; }
+    .notes { margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: var(--muted); }
+    .notes li { margin: 6px 0; }
+    footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #bfc0c0; }
+    @media (max-width: 600px) { main { padding: 24px 16px; } h1 { font-size: 28px; } }
+    @media print {
+      main { padding: 0; } nav { display: none; }
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">CODEX RESETS / CALL CHAIN</p>
+    <h1>项目与外部服务，项目内部模块。</h1>
+    <p>Cloudflare 运行流程：每 3 小时检查一次，变化时发信；继续使用同一个 126 邮箱收发。Worker、D1 和 IMAP 补偿路径已实现。</p>
+    <nav aria-label="图表目录"><a href="#external">01 · 项目与外部调用链</a><a href="#internal">02 · Worker 内部调用链</a></nav>
+  </header>
+
+  <section id="external">
+    <h2>01 · 项目与外部调用链</h2>
+    <p>上方是代码部署链，下方是运行时调用链。箭头表示发起调用的方向，响应沿原路径返回。</p>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="call-external-title call-external-desc">
+        <title id="call-external-title">项目与外部服务的调用链</title>
+        <desc id="call-external-desc">GitHub 通过 Workers Builds 部署监控 Worker，Cron 每三小时执行一次；Worker 调用公开状态 API、D1 和126 SMTP，结果不确定时通过126 IMAP查询收件记录。</desc>
+        <defs>
+          <marker id="ext-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+          <marker id="ext-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker>
+          <marker id="ext-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker>
+        </defs>
+        <rect width="1280" height="720" fill="#f5f5f5"/>
+
+        <!-- Connectors, then opaque nodes. All bends use eight-pixel arcs. -->
+        <path class="wire" d="M336 84 H512" marker-end="url(#ext-arrow)"/>
+        <path class="wire" d="M640 120 V240" marker-end="url(#ext-arrow)"/>
+        <path class="wire" d="M1072 120 V176 A8 8 0 0 1 1064 184 H816 A8 8 0 0 0 808 192 V256 A8 8 0 0 1 800 264 H768" marker-end="url(#ext-arrow)"/>
+        <path class="wire api-wire" d="M512 276 H336" marker-end="url(#ext-arrow-link)"/>
+        <path class="wire" d="M768 288 H944" marker-end="url(#ext-arrow)"/>
+        <path class="wire" d="M684 312 V432" marker-end="url(#ext-arrow)"/>
+        <path class="wire" d="M1072 312 V432" marker-end="url(#ext-arrow)"/>
+        <path class="wire passive" d="M596 312 V360 A8 8 0 0 1 588 368 H216 A8 8 0 0 0 208 376 V432" marker-end="url(#ext-arrow)"/>
+        <path class="wire passive" d="M208 504 V584 A8 8 0 0 0 216 592 H1064 A8 8 0 0 0 1072 584 V504" marker-end="url(#ext-arrow)"/>
+
+        <!-- Labels keep an eight-pixel visible gap from the stroke. -->
+        <rect x="396" y="60" width="56" height="16" fill="#f5f5f5"/><text class="label" x="424" y="72" text-anchor="middle">推送代码</text>
+        <rect x="648" y="164" width="64" height="16" fill="#f5f5f5"/><text class="label" x="680" y="176" text-anchor="middle">自动部署</text>
+        <rect x="908" y="160" width="80" height="16" fill="#f5f5f5"/><text class="label" x="948" y="172" text-anchor="middle">每3小时</text>
+        <rect x="380" y="252" width="88" height="16" fill="#f5f5f5"/><text class="label" x="424" y="264" text-anchor="middle">获取状态</text>
+        <rect x="820" y="264" width="72" height="16" fill="#f5f5f5"/><text class="label" x="856" y="276" text-anchor="middle">提交邮件</text>
+        <rect x="692" y="364" width="88" height="16" fill="#f5f5f5"/><text class="label" x="736" y="376" text-anchor="middle">读取／写入</text>
+        <rect x="1080" y="364" width="56" height="16" fill="#f5f5f5"/><text class="label" x="1108" y="376" text-anchor="middle">投递</text>
+        <rect x="346" y="344" width="112" height="16" fill="#f5f5f5"/><text class="label" x="402" y="356" text-anchor="middle">异常时核对</text>
+        <rect x="588" y="568" width="104" height="16" fill="#f5f5f5"/><text class="label" x="640" y="580" text-anchor="middle">查询收件记录</text>
+
+        <g class="diagram-node">
+          <rect class="node" x="80" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="208" y="80" text-anchor="middle">GitHub 项目</text>
+          <text class="sub" x="208" y="100" text-anchor="middle">turmony/codex-resets</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="512" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="640" y="80" text-anchor="middle">Cloudflare 自动构建</text>
+          <text class="sub" x="640" y="100" text-anchor="middle">Workers Builds</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="944" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="80" text-anchor="middle">Cloudflare 定时触发</text>
+          <text class="sub" x="1072" y="100" text-anchor="middle">30 1-22/3 * * *</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="80" y="240" width="256" height="72" rx="6"/>
+          <text class="name" x="208" y="272" text-anchor="middle">Codex Resets 公开 API</text>
+          <text class="sub" x="208" y="292" text-anchor="middle">HTTPS / GET /api/v1/status</text>
+        </g>
+        <g class="diagram-node">
+          <rect x="512" y="240" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node focal" x="512" y="240" width="256" height="72" rx="6"/>
+          <text class="name" x="640" y="272" text-anchor="middle">本项目：监控 Worker</text>
+          <text class="sub" x="640" y="292" text-anchor="middle">scheduled() / check-and-notify</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="944" y="240" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="272" text-anchor="middle">126 SMTP 服务</text>
+          <text class="sub" x="1072" y="292" text-anchor="middle">smtp.126.com:465 / TLS</text>
+        </g>
+        <g class="diagram-node">
+          <rect x="80" y="432" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node optional" x="80" y="432" width="256" height="72" rx="6"/>
+          <text class="name" x="208" y="464" text-anchor="middle">126 IMAP 核对</text>
+          <text class="sub" x="208" y="484" text-anchor="middle">imap.126.com:993 / TLS</text>
+        </g>
+        <g class="diagram-node">
+          <rect x="512" y="432" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node store" x="512" y="432" width="256" height="72" rx="6"/>
+          <text class="name" x="640" y="464" text-anchor="middle">D1 状态数据库</text>
+          <text class="sub" x="640" y="484" text-anchor="middle">state / notifications / lease</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="944" y="432" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="464" text-anchor="middle">同一个 126 收件邮箱</text>
+          <text class="sub" x="1072" y="484" text-anchor="middle">MAIL_EMAIL</text>
+        </g>
+        <line x1="40" y1="652" x2="1240" y2="652" stroke="#bfc0c0"/>
+        <text class="cn" x="48" y="680">实线：正常调用　　虚线：仅结果不确定时核对　　橙色：本项目执行入口　　发件人与收件人为同一邮箱</text>
+      </svg>
+    </div>
+    <ul class="notes">
+      <li>代码推送触发构建和部署；已部署 Worker 的定时任务独立运行，不等待每次构建。</li>
+      <li>IMAP 仅用于异常恢复；线上连接、认证和搜索已验证，普通检查不访问 IMAP。未找到邮件仍需经过投递缓冲后才能重试。</li>
+      <li>Pages 如以后添加，仅用于读取状态；当前调用链不需要额外前端。</li>
+    </ul>
+  </section>
+
+  <section id="internal">
+    <h2>02 · Worker 内部调用链</h2>
+    <p>入口在 worker/index.ts，monitor.ts 协调检查与通知，store.ts 持久化状态。虚线表示先核对、后决定是否重发的异常补偿。</p>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="call-internal-title call-internal-desc">
+        <title id="call-internal-title">Worker内部模块与通知处理调用链</title>
+        <desc id="call-internal-desc">入口读取状态并获取校验API数据，通知判断没有变化则结束，否则保存待发任务、渲染邮件、通过SMTP提交并保存成功标记；结果不确定时在后续执行中通过IMAP核对。</desc>
+        <defs>
+          <marker id="int-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+          <marker id="int-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker>
+          <marker id="int-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker>
+        </defs>
+        <rect width="1280" height="720" fill="#f5f5f5"/>
+        <path class="wire" d="M336 84 H512" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M768 84 H944" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M1072 120 V176 A8 8 0 0 1 1064 184 H648 A8 8 0 0 0 640 192 V212" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M500 260 H336" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M640 308 V400" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M768 436 H944" marker-end="url(#int-arrow)"/>
+        <path class="wire" d="M1072 472 V552" marker-end="url(#int-arrow)"/>
+        <!-- Uncertain pending events are reconciled before any resend. -->
+        <path class="wire passive" d="M570 284 V344 A8 8 0 0 1 562 352 H216 A8 8 0 0 0 208 360 V400" marker-end="url(#int-arrow)"/>
+        <path class="wire passive" d="M336 436 H512" marker-end="url(#int-arrow)"/>
+        <path class="wire passive" d="M80 436 H56 A8 8 0 0 1 48 428 V268 A8 8 0 0 1 56 260 H80" marker-end="url(#int-arrow)"/>
+        <path class="wire passive" d="M208 472 V628 A8 8 0 0 0 216 636 H1064 A8 8 0 0 0 1072 628 V624" marker-end="url(#int-arrow)"/>
+
+        <rect x="396" y="60" width="56" height="16" fill="#f5f5f5"/><text class="label" x="424" y="72" text-anchor="middle">读取</text>
+        <rect x="828" y="60" width="56" height="16" fill="#f5f5f5"/><text class="label" x="856" y="72" text-anchor="middle">请求</text>
+        <rect x="812" y="160" width="88" height="16" fill="#f5f5f5"/><text class="label" x="856" y="172" text-anchor="middle">合法快照</text>
+        <rect x="380" y="236" width="88" height="16" fill="#f5f5f5"/><text class="label" x="424" y="248" text-anchor="middle">无需通知</text>
+        <rect x="648" y="308" width="100" height="16" fill="#f5f5f5"/><text class="label" x="698" y="320" text-anchor="middle">需要通知</text>
+        <rect x="828" y="412" width="56" height="16" fill="#f5f5f5"/><text class="label" x="856" y="424" text-anchor="middle">提交</text>
+        <rect x="1080" y="504" width="120" height="16" fill="#f5f5f5"/><text class="label" x="1140" y="516" text-anchor="middle">SMTP明确接受</text>
+        <rect x="312" y="328" width="192" height="16" fill="#f5f5f5"/><text class="label" x="408" y="340" text-anchor="middle">存在结果不确定的事件</text>
+        <rect x="348" y="412" width="152" height="16" fill="#f5f5f5"/><text class="label" x="424" y="424" text-anchor="middle">未找到且允许重试</text>
+        <rect x="56" y="324" width="120" height="16" fill="#f5f5f5"/><text class="label" x="116" y="336" text-anchor="middle">暂缓或预测过期</text>
+        <rect x="588" y="612" width="104" height="16" fill="#f5f5f5"/><text class="label" x="640" y="624" text-anchor="middle">找到对应邮件</text>
+
+        <g class="diagram-node">
+          <rect x="80" y="48" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node focal" x="80" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="208" y="80" text-anchor="middle">任务入口</text>
+          <text class="sub" x="208" y="100" text-anchor="middle">scheduled() / POST /check</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="512" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="640" y="80" text-anchor="middle">读取通知状态与待发记录</text>
+          <text class="sub" x="640" y="100" text-anchor="middle">Store.acquire() / state()</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="944" y="48" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="80" text-anchor="middle">获取并校验 API 数据</text>
+          <text class="sub" x="1072" y="100" text-anchor="middle">fetchStatus() / parseStatus()</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="80" y="224" width="256" height="72" rx="20"/>
+          <text class="name" x="208" y="256" text-anchor="middle">结束本轮检查</text>
+          <text class="cn" x="208" y="276" text-anchor="middle">不发送邮件</text>
+        </g>
+        <g class="diagram-node">
+          <polygon points="640,212 780,260 640,308 500,260" fill="#ffffff" stroke="#2d3142"/>
+          <text class="name" x="640" y="256" text-anchor="middle">需要通知或重试？</text>
+          <text class="sub" x="640" y="272" text-anchor="middle">planNotifications()</text>
+        </g>
+        <g class="diagram-node">
+          <rect x="80" y="400" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node optional" x="80" y="400" width="256" height="72" rx="6"/>
+          <text class="name" x="208" y="432" text-anchor="middle">按事件 ID 核对收件记录</text>
+          <text class="sub" x="208" y="452" text-anchor="middle">imap.findReceived()</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="512" y="400" width="256" height="72" rx="6"/>
+          <text class="name" x="640" y="432" text-anchor="middle">保存待发任务并渲染邮件</text>
+          <text class="sub" x="640" y="452" text-anchor="middle">Store.prepare() / render*()</text>
+        </g>
+        <g class="diagram-node">
+          <rect class="node" x="944" y="400" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="432" text-anchor="middle">126 SMTP 邮件提交</text>
+          <text class="sub" x="1072" y="452" text-anchor="middle">smtp.sendMail()</text>
+        </g>
+        <g class="diagram-node">
+          <rect x="944" y="552" width="256" height="72" rx="6" fill="#f5f5f5"/>
+          <rect class="node store" x="944" y="552" width="256" height="72" rx="6"/>
+          <text class="name" x="1072" y="584" text-anchor="middle">保存提交结果及已通知标记</text>
+          <text class="sub" x="1072" y="604" text-anchor="middle">Store.complete() / SQL trigger</text>
+        </g>
+        <line x1="40" y1="668" x2="1240" y2="668" stroke="#bfc0c0"/>
+        <text class="cn" x="48" y="696">实线：正常执行　　虚线：新增异常补偿　　菱形：通知判断　　灰色框：持久状态</text>
+      </svg>
+    </div>
+    <ul class="notes">
+      <li><strong>通知判断：</strong>启用邮件、有效预测新增或更新、新的确认重置；预测过期只清理状态。比较时也检查是否存在待重试通知。</li>
+      <li><strong>成功保存：</strong>邮件已被接受但写库失败时，只重试写库；不要因为退出 SMTP 会话失败而重新发信。</li>
+      <li><strong>提交不确定：</strong>保留待核对记录并结束本轮；下次从读取记录进入核对分支。SMTP 接受表示服务器已接收，不等于已投递到收件箱。</li>
+      <li><strong>异常核对：</strong>下轮检查先处理结果不确定的事件，再考虑重发。找到对应邮件则补写状态；未找到需留投递缓冲，查询失败则暂缓，预测过期后不重发。</li>
+      <li><strong>当前模块：</strong><code>index.ts → monitor.ts → store.ts / api.ts / domain.ts → emailer.ts / smtp.ts / imap.ts → store.ts</code>。原 Python 模块保留为行为参考和回滚路径。</li>
+    </ul>
+  </section>
+  <footer>
+    <p>默认浅色风格 · 两张简单调用链图 · 连续操作合并展示；API 有限重试、租约、SMTP 协议命令等细节未展开。图形为内嵌 SVG，页面无需图形库或脚本；联网字体不可用时使用本地中文字体。</p>
+  </footer>
+</main>
+</body>
+</html>

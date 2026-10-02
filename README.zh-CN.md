@@ -3,51 +3,52 @@
 [English](README.md) | 简体中文
 
 [![测试](https://github.com/turmony/codex-resets/actions/workflows/test.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/test.yml)
-[![监控](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml/badge.svg)](https://github.com/turmony/codex-resets/actions/workflows/monitor.yml)
 
-一个基于 GitHub Actions 的轻量监控工具，每隔 3 小时检查 Codex Resets 公开状态 API，并通过网易 126 邮箱发送重置预测和公告。
+Cloudflare Worker 每隔 3 小时检查 Codex Resets 公开 API，通过同一个网易 126 邮箱发送和接收预测、预测更新、确认重置通知。GitHub 保存源码，Workers Builds 在推送 `main` 后测试并部署；通知状态保存在 D1，部署不清空历史。
 
-## 主要功能
+## 部署和迁移
 
-- 北京时间每隔 3 小时的半点运行，无需单独服务器。
-- 发送启用、预测、预测更新和确认重置邮件。
-- 使用同一个 126 邮箱发信和收信。
-- 仅在 `state.json` 中保存公开通知标记，避免重复提醒。
-
-## 快速部署
-
-1. Fork 本仓库，或将代码推送到一个公开 GitHub 仓库。
-2. 在网易 126 邮箱中开启 **IMAP/SMTP 服务**并生成 SMTP 授权码；无需开启 POP3/SMTP。
-3. 在 **Settings → Secrets and variables → Actions** 中添加两个仓库 Secrets：
-
-   | Secret | 内容 |
-   | --- | --- |
-   | `MAIL_EMAIL` | 你的 126 邮箱地址 |
-   | `MAIL_SMTP_AUTH_CODE` | 126 SMTP 授权码，不是邮箱登录密码 |
-
-4. 在 **Settings → Actions → General → Workflow permissions** 中选择 **Read and write permissions**。
-5. 打开 **Actions → Monitor Codex Resets**，手动运行一次。首次成功运行会发送启用邮件并创建 `state.json`。
-
-从 QQ 邮箱迁移已有监控时，在 Actions Secrets 中改用 `MAIL_EMAIL` 和 `MAIL_SMTP_AUTH_CODE`。原有通知状态会保留，因此公开状态未变化时手动运行不会发信。若希望新邮箱收到一次启用邮件，可先将 `state.json` 恢复为初始值，再手动运行。
-
-## 通知规则
-
-工作流使用 UTC 时间 `30 1-22/3 * * *`，对应北京时间 00:30、03:30、06:30、……、21:30。GitHub Actions 定时调度可能延迟或跳过，无法保证准时执行。
-
-监控启用时，以及公开预测或确认重置发生变化时才会发信。如果数据源只提供预测窗口，没有准确时间或时区，本项目不会自行推测具体重置时刻。
-
-## 安全与限制
-
-- 不要提交或公开 126 邮箱、授权码、密码或令牌。
-- Secrets 仅供生产工作流使用，拉取请求测试不会读取它们。
-- `state.json` 只包含公开 API 派生的通知标记。
-- 本项目展示第三方的全局状态信息，无法读取个人 Codex 额度、用量或账户状态；预测不构成 OpenAI 服务承诺。
-- 公开仓库连续 60 天无活动时，GitHub 可能停用定时工作流。如监控停止，请重新启用并手动运行一次。
-
-## 本地开发
-
-需要 Python 3.12。使用以下命令运行测试：
+完整步骤见 [Cloudflare 部署说明](docs/cloudflare-migration.zh-CN.md)，调用链见 [HTML 流程图](docs/diagrams/project-call-chain.html)。现有部署的 Worker 名称为 `codex-resets-monitor`。
 
 ```bash
-uv run --python 3.12 python -m unittest discover -s tests -v
+npm ci
+npm run types
+npm run typecheck
+npm test
+npm run build
 ```
+
+需要 Node.js 24 和已登录的 Wrangler。首次自行部署时，创建 D1，修改 `wrangler.jsonc` 中的账户和数据库标识，再应用迁移、设置 Secrets 并部署，具体顺序见部署说明。
+
+在 126 邮箱开启 **IMAP/SMTP** 服务，使用授权码。在 Worker 运行时配置三个 **Secret**：`MAIL_EMAIL`、`MAIL_SMTP_AUTH_CODE`、`ADMIN_TOKEN`。不要把邮箱或授权码放入 Git、普通变量或构建变量。
+
+## 通知和恢复
+
+- UTC Cron 为 `30 1-22/3 * * *`，对应北京时间 00:30、03:30、……、21:30。没有额外的每 10 分钟唤醒。
+- 首次启用发一封启用邮件；导入已初始化的历史状态后不会再次发送。
+- 有效预测指纹变化或新的确认重置才发信；过期预测不发送。
+- 每封邮件先保存待发记录。SMTP 明确接受后，D1 在同一事务中保存提交结果与去重标记；写库失败只重试写库。
+- 提交结果不确定时，下轮先通过 IMAP 查找对应事件。查到则补写状态；查不到且经过 30 分钟缓冲后才允许重试；IMAP 失败时暂缓重发。
+- SMTP 和 D1 无法形成一个跨服务原子事务。该恢复策略降低重复风险，不承诺 SMTP 严格恰好投递一次。
+
+## 管理
+
+`GET /health` 仅提供服务健康摘要。`GET /status`、`POST /check` 和 `POST /verify-mail` 需要 `Authorization: Bearer <ADMIN_TOKEN>`；验证接口检查 SMTP/IMAP 连接和认证，不发送测试邮件。
+
+本次迁移生成的管理令牌保存在忽略的 `.wrangler/admin-token` 文件中，也可通过 `ADMIN_TOKEN` 环境变量提供。命令不会打印令牌：
+
+```bash
+npm run admin -- status
+npm run admin -- verify-mail
+npm run admin -- check
+```
+
+需要代理时，设置 `HTTPS_PROXY` 后使用 `node --use-env-proxy scripts/admin.mjs status`。其他部署请用 `MONITOR_URL` 环境变量指定 Worker 地址。
+
+## 开发和回滚
+
+`npm run dev` 在本地模拟 Worker。私密配置放入忽略的 `.dev.vars`；本地 D1 使用 `npm run db:local`。Workers 测试使用独立数据库和模拟邮件连接，不访问生产资源。
+
+原 Python 实现保留为行为参考和回滚路径，可用 `uv run --python 3.12 python -m unittest discover -s tests -v` 验证。旧监控 workflow 已改为手动执行，且需要勾选 `run_legacy`；回滚前先暂停 Worker，并把最新 D1 通知标记同步到 `state.json`，避免两套监控同时发信。
+
+本项目只报告第三方全局公开状态，无法读取个人 Codex 额度或账户状态；预测不是 OpenAI 服务承诺。Cron 也不是精确到秒的实时通知机制。
