@@ -18,8 +18,8 @@ function fromHex(value: string): Uint8Array<ArrayBuffer> {
   return new Uint8Array(value.match(/../g)!.map(part => parseInt(part, 16)));
 }
 function password(value: unknown, newPassword = false): string {
-  if (typeof value !== 'string' || value.length > 128 || value.length < (newPassword ? 12 : 1)) {
-    throw new AuthError(newPassword ? '新密码须为 12–128 个字符，可以使用中文或空格。' : '请输入密码。', 400);
+  if (typeof value !== 'string' || value.length > 128 || value.length < (newPassword ? 6 : 1)) {
+    throw new AuthError(newPassword ? '新密码须为 6–128 个字符，可以使用中文或空格。' : '请输入密码。', 400);
   }
   return value;
 }

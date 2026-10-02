@@ -40,7 +40,7 @@ SMTP acceptance and D1 writes cannot form a single distributed atomic transactio
 
 The [dashboard](https://codex-resets-monitor.turmony.workers.dev/) follows the light card layout in `ikuuu-daily-checkin`. Sign in with your own password to view the last check, next scheduled check, deduplication markers, pending notifications and the latest 20 notification records, or run a manual check and verify mail connections. There is no automatic polling.
 
-On first use, enter the original admin token as the recovery code and set a 12–128 character password. You can change the password while signed in, or use “Forgot password” and the recovery code to reset it. Both actions revoke every session atomically and preserve monitoring history. Back up the recovery code from the ignored `.wrangler/admin-token` file offline.
+On first use, enter the original admin token as the recovery code and set a 6–128 character password. You can change the password while signed in, or use “Forgot password” and the recovery code to reset it. Both actions revoke every session atomically and preserve monitoring history. Back up the recovery code from the ignored `.wrangler/admin-token` file offline.
 
 D1 stores a salted, secret-peppered PBKDF2 verifier rather than plaintext passwords. Sessions use a secure HttpOnly SameSite=Strict cookie with a 12-hour expiry. Authentication requests are rate limited. Public `GET /health` and `GET /auth/status` return small summaries; management operations require a session. Mail verification checks SMTP/IMAP TLS and authentication without sending mail.
 

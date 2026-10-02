@@ -32,9 +32,9 @@ export const html = `<!doctype html>
       <label for="setupCode">备用恢复码</label>
       <input id="setupCode" type="password" autocomplete="off" maxlength="512" placeholder="输入原管理令牌作为恢复码" required>
       <label for="setupPassword">登录密码</label>
-      <input id="setupPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+      <input id="setupPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="6–128 个字符，可以使用中文或空格" required>
       <label for="setupConfirm">确认密码</label>
-      <input id="setupConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <input id="setupConfirm" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
       <button id="setup" type="submit">设置密码</button>
       <p class="hint">恢复码请离线保存，忘记密码时需要它；日常登录只需密码。</p>
     </form>
@@ -52,9 +52,9 @@ export const html = `<!doctype html>
       <label for="resetCode">备用恢复码</label>
       <input id="resetCode" type="password" autocomplete="off" maxlength="512" required>
       <label for="resetPassword">新密码</label>
-      <input id="resetPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+      <input id="resetPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="6–128 个字符，可以使用中文或空格" required>
       <label for="resetConfirm">确认新密码</label>
-      <input id="resetConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+      <input id="resetConfirm" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
       <button id="reset" type="submit">重置密码</button>
       <button id="back" type="button" class="secondary">返回登录</button>
     </form>
@@ -85,9 +85,9 @@ export const html = `<!doctype html>
         <label for="currentPassword">当前密码</label>
         <input id="currentPassword" type="password" autocomplete="current-password" maxlength="128" required>
         <label for="newPassword">新密码</label>
-        <input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="12–128 个字符，可以使用中文或空格" required>
+        <input id="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="6–128 个字符，可以使用中文或空格" required>
         <label for="newConfirm">确认新密码</label>
-        <input id="newConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+        <input id="newConfirm" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
         <button id="change" type="submit">修改密码</button>
       </form>
       <p class="hint">修改后所有会话会立即退出，请使用新密码重新登录。</p>
@@ -246,7 +246,7 @@ async function act(path) {
 }
 function newPassword(first, confirm) {
   const value = get(first).value;
-  if (value.length < 12 || value.length > 128) throw Error('新密码须为 12–128 个字符。');
+  if (value.length < 6 || value.length > 128) throw Error('新密码须为 6–128 个字符。');
   if (value !== get(confirm).value) throw Error('两次输入的新密码不一致。');
   return value;
 }

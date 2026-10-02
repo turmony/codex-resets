@@ -4,8 +4,8 @@ import worker from '../worker/index';
 import { Auth, AuthError } from '../worker/auth';
 
 const code = 'private-recovery-code-fixture';
-const password = '管理密码 fixture 2026';
-const newPassword = 'another-password-2026';
+const password = '密码测试六位';
+const newPassword = 'new123';
 const testEnv = { ...env, ADMIN_TOKEN: code, MONITOR_ENABLED: 'false' };
 const origin = 'https://monitor.test';
 function request(path: string, body?: unknown, cookie?: string, extra: HeadersInit = {}) {
