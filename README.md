@@ -38,6 +38,8 @@ SMTP acceptance and D1 writes cannot form a single distributed atomic transactio
 
 ## Operations
 
+The [dashboard](https://codex-resets-monitor.turmony.workers.dev/) follows the light card layout in `ikuuu-daily-checkin`. Enter the admin token to view the last check, next scheduled check, deduplication markers, pending notifications and the latest 20 notification records, or run a manual check and verify mail connections. The token is kept only for the current page visit; there is no automatic polling.
+
 Public `GET /health` returns a small health summary. `GET /status`, `POST /check`, and `POST /verify-mail` require an admin bearer token. Mail verification checks SMTP/IMAP TLS and authentication without sending mail.
 
 ```bash

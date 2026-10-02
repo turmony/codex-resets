@@ -33,6 +33,8 @@ npm run build
 
 ## 管理
 
+打开 [监控首页](https://codex-resets-monitor.turmony.workers.dev/) 查看服务摘要。页面参考 `ikuuu-daily-checkin` 的浅色卡片布局；输入管理令牌后可查看最近检查、下次计划检查、去重标记、待处理通知和最近 20 条通知，并执行立即检查或邮件连接验证。令牌仅用于当前页面访问，不存入浏览器；页面没有定时轮询。
+
 `GET /health` 仅提供服务健康摘要。`GET /status`、`POST /check` 和 `POST /verify-mail` 需要 `Authorization: Bearer <ADMIN_TOKEN>`；验证接口检查 SMTP/IMAP 连接和认证，不发送测试邮件。
 
 本次迁移生成的管理令牌保存在忽略的 `.wrangler/admin-token` 文件中，也可通过 `ADMIN_TOKEN` 环境变量提供。命令不会打印令牌：

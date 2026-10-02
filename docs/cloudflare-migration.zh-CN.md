@@ -1,6 +1,6 @@
 # Cloudflare 部署与迁移说明
 
-实现日期：2026-10-02。项目使用 TypeScript Worker、Cron、D1 和 Workers Builds；现有 Python 保留为回滚参考。调用关系见 [简单 HTML 流程图](diagrams/project-call-chain.html)。项目没有前端，当前无需单独的 Pages 项目。
+实现日期：2026-10-02。项目使用 TypeScript Worker、Cron、D1 和 Workers Builds；现有 Python 保留为回滚参考。调用关系见 [简单 HTML 流程图](diagrams/project-call-chain.html)。管理首页由同一个 Worker 提供，无需单独的 Pages 项目。
 
 ## 当前部署
 
@@ -63,6 +63,12 @@ D1 租约有效期 5 分钟，单轮运行预算 3 分钟。获取租约失败�
 SMTP 不能参与 D1 事务。即使 IMAP 未找到，迟到投递、用户删信和服务端索引延迟仍可能导致重复；该策略不承诺严格恰好一次。API 获取失败时本轮停止通知与恢复，等待下一次检查。
 
 ## 管理与验证
+
+访问 Worker 根路径 `/` 打开管理首页，布局参考 `turmony/ikuuu-daily-checkin` 的 `src/page.js`。`worker/page.ts` 提供 HTML、CSS、JavaScript，分别通过 `/`、`/app.css`、`/app.js` 返回；静态页面不包含私密配置或监控标记。
+
+页面打开时仅读取一次公开 `/health`。输入管理令牌后，浏览器通过 Bearer 鉴权读取 `/status`，显示运行摘要、下次计划检查、去重标记、待处理统计和最近 20 条通知；最近通知不返回邮件正文或收件人。令牌不存入 Cookie、localStorage 或 sessionStorage，页面刷新或离开后清除。清除令牌或修改输入会隐藏已加载的私密状态。
+
+“立即检查”调用 `POST /check`，沿用正常通知规则；“验证邮件连接”调用 `POST /verify-mail`，不发送测试邮件。操作完成后刷新一次状态，不进行定时轮询。页面使用同源 CSS/JavaScript 和 CSP，管理修改接口拒绝来自其他 Origin 的请求。下次检查为 Cron 计划时间，不保证精确执行时刻。
 
 管理令牌可以放在 `ADMIN_TOKEN` 环境变量或忽略的 `.wrangler/admin-token` 文件；`MONITOR_URL` 指向其他部署。
 
