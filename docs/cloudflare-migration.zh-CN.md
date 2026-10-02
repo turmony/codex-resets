@@ -15,6 +15,10 @@
 | 发信 / 核对 | `smtp.126.com:465` / `imap.126.com:993`，隐式 TLS |
 | 状态 | D1 `monitor` 和 `notifications`，不再提交运行时状态到 GitHub |
 
+2026-10-02 已完成切换并核验 GitHub 自动部署：提交 `fc6e2921d91ec98dee1ccfd71bd57887299b0cfe` 触发 Cloudflare 构建 `d6edfff9-767c-4c69-83be-e390e0dddf72`，触发来源为 `push_event`，构建和部署成功。Worker 版本为 `234edab4-a817-4791-9181-1b0f590a791c`。GitHub 回归测试通过（Python 73 项、Worker 45 项）。
+
+自动部署后健康接口显示已启用且配置完整，SMTP/IMAP 连接验证均通过；北京时间 17:22 执行检查成功，发送 0 封、失败 0 项、无待处理通知，历史标记保持一致。邮件连接验证没有发送测试邮件，因此尚未通过生产环境实际通知验证最终收件。旧 GitHub 监控工作流已停用。
+
 ## 首次部署到自己的账户
 
 1. 安装 Node.js 24，运行 `npm ci`、`npx wrangler login`。
@@ -39,6 +43,8 @@ Cloudflare 控制台选择 Worker → Settings → Builds，连接 GitHub 仓库
 - 构建触发范围：Worker、SQL 迁移、脚本、Worker 测试、依赖和配置文件。文档和历史 `state.json` 更新无需发布 Worker。
 
 邮箱配置只保存在 Worker 运行时 Secrets。自动部署保留 Secrets 和 D1 数据；不把邮箱授权码提供给构建或 PR 测试。第一次自动构建必须检查日志，确认仓库授权、测试、D1 权限和实际发布均成功，不能仅凭连接记录判断部署链已可用。
+
+GitHub → Settings → Applications → Installed GitHub Apps → Cloudflare Workers & Pages 的仓库访问范围必须包含本项目；仅在 Cloudflare 建立连接或手动构建成功，仍不能证明 GitHub 推送事件已获授权。本次在补全仓库授权后完成了实际推送验证。
 
 GitHub Actions `test.yml` 只做 Python 回归和 Worker 检查。`monitor.yml` 不再包含 schedule，保留手动回滚入口；线上监控不依赖 GitHub Actions runner。
 
